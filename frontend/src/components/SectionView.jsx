@@ -90,11 +90,16 @@ function DataTable({ headers, rows, onRowClick }) {
         <tbody>
           {rows.map((row, ri) => (
             <tr key={ri} onClick={onRowClick} style={onRowClick ? { cursor: 'pointer' } : {}}>
-              {row.map((cell, ci) => (
-                <td key={ci} style={typeof cell === 'object' && cell.highlight ? { color: 'var(--cyan)', fontWeight: 600 } : {}}>
-                  {typeof cell === 'object' && cell.status ? <StatusBadge status={cell.text} /> : (cell ?? '—')}
-                </td>
-              ))}
+              {row.map((cell, ci) => {
+                if (typeof cell === 'object' && cell !== null) {
+                  const style = cell.highlight ? { color: 'var(--cyan)', fontWeight: 600 } : {};
+                  if (cell.status) {
+                    return <td key={ci} style={style}><StatusBadge status={cell.text} /></td>;
+                  }
+                  return <td key={ci} style={style}>{cell.text ?? '—'}</td>;
+                }
+                return <td key={ci}>{cell ?? '—'}</td>;
+              })}
             </tr>
           ))}
         </tbody>

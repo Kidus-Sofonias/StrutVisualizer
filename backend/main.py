@@ -417,7 +417,7 @@ async def export_report(req: ExportRequest):
         filename = f"report_{project.project_name}_{timestamp}.pdf"
         output_path = EXPORTS_DIR / filename
         from exporters.pdf_exporter import export_to_pdf
-        export_to_pdf(project, str(output_path))
+        export_to_pdf(project, str(output_path), sections=sections)
     else:
         raise HTTPException(400, f"Unknown format: {req.format}")
     

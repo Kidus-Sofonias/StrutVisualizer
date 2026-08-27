@@ -58,16 +58,9 @@ def export_to_excel(project: Project, output_path: str, sections: Dict = None) -
     wb = Workbook()
     wb.remove(wb.active)
 
-    # Section 3.2 sheets
+    # All 3.2 tables on one worksheet, then each 3.3–4.6 on separate sheets
     _create_project_info_sheet(wb, project)
-    _create_3_2_1_sheet(wb, project)
-    _create_3_2_2_sheet(wb, project)
-    _create_3_2_3_sheet(wb, project)
-    _create_3_2_4_sheet(wb, project)
-    _create_3_2_5_sheet(wb, project)
-    _create_3_2_6_sheet(wb, project)
-    _create_3_2_7_sheet(wb, project)
-    _create_3_2_8_sheet(wb, project)
+    _create_3_2_combined_sheet(wb, project)
 
     # Section 3.3–4.6 sheets
     if sections:
@@ -112,137 +105,119 @@ def _create_project_info_sheet(wb, project):
 
 # ─── Section 3.2 sheets ─────────────────────────────────────────────────
 
-def _create_3_2_1_sheet(wb, project):
-    ws = wb.create_sheet("3.2.1 Plan Regularity")
-    ws["A1"] = "3.2.1 Regularity in Plan"
-    ws["A1"].font = TITLE_FONT
-    ws["A3"] = "Slenderness Check: λ = Lmax / Lmin < 4"
-    ws["A4"] = f"Lmax: {project.lmax} m"
-    ws["A5"] = f"Lmin: {project.lmin} m"
+def _create_3_2_combined_sheet(wb, project):
+    """All 3.2 tables (3.2.1–3.2.8) on one worksheet."""
+    ws = wb.create_sheet("3.2 Structural Regularity")
+    storeys = project.get_storeys_sorted()
     lam = project.lmax / project.lmin if project.lmin > 0 else 0
-    ws["A6"] = f"λ = {lam:.3f}"
-    ws["A7"] = "Status: " + ("OK" if lam < 4 else "NOT OK")
-    r = 9
-    r = _write_header_row(ws, r, ["Story", "Lmax (m)", "Lmin (m)", "λ", "Status"])
-    for storey in project.get_storeys_sorted():
-        ws.cell(row=r, column=1, value=storey.normalized_name).border = THIN_BORDER
-        ws.cell(row=r, column=2, value=project.lmax).border = THIN_BORDER
-        ws.cell(row=r, column=3, value=project.lmin).border = THIN_BORDER
-        ws.cell(row=r, column=4, value=round(lam, 3)).border = THIN_BORDER
-        status = "OK" if lam < 4 else "NOT OK"
-        cell = ws.cell(row=r, column=5, value=status)
-        cell.border = THIN_BORDER
-        cell.fill = GREEN_FILL if status == "OK" else RED_FILL
-        r += 1
+    r = 1
 
+    # ── 3.2.1 Plan Regularity ──
+    ws.cell(row=r, column=1, value="3.2.1 Regularity in Plan").font = TITLE_FONT
+    r += 1
+    ws.cell(row=r, column=1, value=f"λ = Lmax/Lmin = {project.lmax}/{project.lmin} = {lam:.3f}  →  {'OK' if lam < 4 else 'NOT OK'}")
+    r += 2
 
-def _create_3_2_2_sheet(wb, project):
-    ws = wb.create_sheet("3.2.2 Eccentricity")
-    ws["A1"] = "Table 3.2.2: Structural Eccentricity"
-    ws["A1"].font = TITLE_FONT
-    ws["A3"] = "Formula: eox = Xcm - Xcr, eoy = Ycm - Ycr"
-    r = 5
+    # ── 3.2.2 Structural Eccentricity ──
+    ws.cell(row=r, column=1, value="3.2.2 Structural Eccentricity").font = TITLE_FONT
+    r += 1
+    ws.cell(row=r, column=1, value="eox = Xcm − Xcr,  eoy = Ycm − Ycr").font = SUBTITLE_FONT
+    r += 1
     r = _write_header_row(ws, r, ["Story", "Xcm (m)", "Ycm (m)", "Xcr (m)", "Ycr (m)", "eox (m)", "eoy (m)"])
-    for storey in project.get_storeys_sorted():
-        sd, c = storey.source_data, storey.calculations
-        _write_data_row(ws, r, [storey.normalized_name, sd.xcm, sd.ycm, sd.xcr, sd.ycr, c.eox, c.eoy])
+    for s in storeys:
+        sd, c = s.source_data, s.calculations
+        _write_data_row(ws, r, [s.normalized_name, sd.xcm, sd.ycm, sd.xcr, sd.ycr, c.eox, c.eoy])
         r += 1
+    r += 1
 
-
-def _create_3_2_3_sheet(wb, project):
-    ws = wb.create_sheet("3.2.3 Torsional Radius")
-    ws["A1"] = "Table 3.2.3: Torsional Radius"
-    ws["A1"].font = TITLE_FONT
-    ws["A3"] = "rx = √(KMT/KFY), ry = √(KMT/KFX)"
-    r = 5
+    # ── 3.2.3 Torsional Radius ──
+    ws.cell(row=r, column=1, value="3.2.3 Torsional Radius").font = TITLE_FONT
+    r += 1
+    ws.cell(row=r, column=1, value="rx = √(KMT/KFY),  ry = √(KMT/KFX)").font = SUBTITLE_FONT
+    r += 1
     r = _write_header_row(ws, r, ["Story", "UX(UL1)", "UY(UL2)", "RZ(UL3)", "KFX", "KFY", "KMT", "rx (m)", "ry (m)"])
-    for storey in project.get_storeys_sorted():
-        sd, c = storey.source_data, storey.calculations
-        _write_data_row(ws, r, [storey.normalized_name, sd.ux_ul1, sd.uy_ul2, sd.rz_ul3, c.kfx, c.kfy, c.kmt, c.rx, c.ry])
+    for s in storeys:
+        sd, c = s.source_data, s.calculations
+        _write_data_row(ws, r, [s.normalized_name, sd.ux_ul1, sd.uy_ul2, sd.rz_ul3, c.kfx, c.kfy, c.kmt, c.rx, c.ry])
         r += 1
+    r += 1
 
-
-def _create_3_2_4_sheet(wb, project):
-    ws = wb.create_sheet("3.2.4 Ecc vs Gyration")
-    ws["A1"] = "Table 3.2.4: Eccentricity vs Gyration Comparison"
-    ws["A1"].font = TITLE_FONT
-    ws["A3"] = "Criterion: |eox| ≤ 0.3·rx, |eoy| ≤ 0.3·ry"
-    r = 5
-    r = _write_header_row(ws, r, ["Story", "eox (m)", "rx (m)", "0.3·rx", "Status X", "eoy (m)", "ry (m)", "0.3·ry", "Status Y"])
-    for storey in project.get_storeys_sorted():
-        c = storey.calculations
-        row_vals = [storey.normalized_name, c.eox, c.rx, c.module_3_2_4_limit_x, c.module_3_2_4_eox_status,
-                    c.eoy, c.ry, c.module_3_2_4_limit_y, c.module_3_2_4_eoy_status]
-        _write_data_row(ws, r, row_vals, status_col=5, status_val=c.module_3_2_4_eox_status)
-        # Also color the Y status column
+    # ── 3.2.4 Eccentricity vs Gyration ──
+    ws.cell(row=r, column=1, value="3.2.4 Eccentricity vs Gyration").font = TITLE_FONT
+    r += 1
+    ws.cell(row=r, column=1, value="|eox| ≤ 0.3·rx,  |eoy| ≤ 0.3·ry").font = SUBTITLE_FONT
+    r += 1
+    r = _write_header_row(ws, r, ["Story", "eox", "rx", "0.3·rx", "Status X", "eoy", "ry", "0.3·ry", "Status Y"])
+    for s in storeys:
+        c = s.calculations
+        _write_data_row(ws, r, [s.normalized_name, c.eox, c.rx, c.module_3_2_4_limit_x, c.module_3_2_4_eox_status,
+                                c.eoy, c.ry, c.module_3_2_4_limit_y, c.module_3_2_4_eoy_status], status_col=5, status_val=c.module_3_2_4_eox_status)
         cell_y = ws.cell(row=r, column=9)
-        if c.module_3_2_4_eoy_status == "OK":
-            cell_y.fill = GREEN_FILL
-        elif c.module_3_2_4_eoy_status == "NOT OK":
-            cell_y.fill = RED_FILL
+        if c.module_3_2_4_eoy_status == "OK": cell_y.fill = GREEN_FILL
+        elif c.module_3_2_4_eoy_status == "NOT OK": cell_y.fill = RED_FILL
         r += 1
+    r += 1
 
-
-def _create_3_2_5_sheet(wb, project):
-    ws = wb.create_sheet("3.2.5 Torsional vs Gyration")
-    ws["A1"] = "Table 3.2.5: Torsional Radius vs Floor Radius"
-    ws["A1"].font = TITLE_FONT
-    ws["A3"] = "Criterion: rx ≥ ls, ry ≥ ls"
-    r = 5
-    r = _write_header_row(ws, r, ["Story", "rx (m)", "ls (m)", "Status X", "ry (m)", "ls (m)", "Status Y"])
-    for storey in project.get_storeys_sorted():
-        c = storey.calculations
-        _write_data_row(ws, r, [storey.normalized_name, c.rx, c.ls, c.module_3_2_5_rx_status,
-                                 c.ry, c.ls, c.module_3_2_5_ry_status],
-                        status_col=4, status_val=c.module_3_2_5_rx_status)
+    # ── 3.2.5 Torsional vs Floor Radius ──
+    ws.cell(row=r, column=1, value="3.2.5 Torsional Radius vs Floor Radius").font = TITLE_FONT
+    r += 1
+    ws.cell(row=r, column=1, value="rx ≥ ls,  ry ≥ ls").font = SUBTITLE_FONT
+    r += 1
+    r = _write_header_row(ws, r, ["Story", "rx", "ls", "Status X", "ry", "ls", "Status Y"])
+    for s in storeys:
+        c = s.calculations
+        _write_data_row(ws, r, [s.normalized_name, c.rx, c.ls, c.module_3_2_5_rx_status,
+                                c.ry, c.ls, c.module_3_2_5_ry_status], status_col=4, status_val=c.module_3_2_5_rx_status)
         cell_y = ws.cell(row=r, column=7)
         if c.module_3_2_5_ry_status == "OK": cell_y.fill = GREEN_FILL
         elif c.module_3_2_5_ry_status == "NOT OK": cell_y.fill = RED_FILL
         r += 1
+    r += 1
 
-
-def _create_3_2_6_sheet(wb, project):
-    ws = wb.create_sheet("3.2.6 Stiffness X")
-    ws["A1"] = "Table 3.2.6: Storey Stiffness X"
-    ws["A1"].font = TITLE_FONT
-    ws["A3"] = "Criterion: Ki > 0.7·Ki+1"
-    r = 5
-    r = _write_header_row(ws, r, ["Story", "Kx (kN/m)", "VX (EQX)", "UX (EQX)", "Status"])
-    for storey in project.get_storeys_sorted():
-        sd, c = storey.source_data, storey.calculations
-        _write_data_row(ws, r, [storey.normalized_name, c.kx, sd.vx_eqx, sd.ux_eqx, c.module_3_2_6_status],
-                        status_col=5, status_val=c.module_3_2_6_status)
+    # ── 3.2.6 Storey Stiffness X ──
+    ws.cell(row=r, column=1, value="3.2.6 Storey Stiffness X").font = TITLE_FONT
+    r += 1
+    ws.cell(row=r, column=1, value="Kx = VX(EQX) / ΔUX,  Criterion: Ki > 0.7·Ki+1").font = SUBTITLE_FONT
+    r += 1
+    r = _write_header_row(ws, r, ["Story", "Kx (kN/m)", "VX (EQX)", "ΔUX (EQX)", "Status"])
+    for s in storeys:
+        sd, c = s.source_data, s.calculations
+        _write_data_row(ws, r, [s.normalized_name, c.kx, sd.vx_eqx, sd.ux_eqx, c.module_3_2_6_status], status_col=5, status_val=c.module_3_2_6_status)
         r += 1
+    r += 1
 
-
-def _create_3_2_7_sheet(wb, project):
-    ws = wb.create_sheet("3.2.7 Stiffness Y")
-    ws["A1"] = "Table 3.2.7: Storey Stiffness Y"
-    ws["A1"].font = TITLE_FONT
-    ws["A3"] = "Criterion: Ki > 0.7·Ki+1"
-    r = 5
-    r = _write_header_row(ws, r, ["Story", "Ky (kN/m)", "VY (EQY)", "UY (EQY)", "Status"])
-    for storey in project.get_storeys_sorted():
-        sd, c = storey.source_data, storey.calculations
-        _write_data_row(ws, r, [storey.normalized_name, c.ky, sd.vy_eqy, sd.uy_eqy, c.module_3_2_7_status],
-                        status_col=5, status_val=c.module_3_2_7_status)
+    # ── 3.2.7 Storey Stiffness Y ──
+    ws.cell(row=r, column=1, value="3.2.7 Storey Stiffness Y").font = TITLE_FONT
+    r += 1
+    ws.cell(row=r, column=1, value="Ky = VY(EQY) / ΔUY,  Criterion: Ki > 0.7·Ki+1").font = SUBTITLE_FONT
+    r += 1
+    r = _write_header_row(ws, r, ["Story", "Ky (kN/m)", "VY (EQY)", "ΔUY (EQY)", "Status"])
+    for s in storeys:
+        sd, c = s.source_data, s.calculations
+        _write_data_row(ws, r, [s.normalized_name, c.ky, sd.vy_eqy, sd.uy_eqy, c.module_3_2_7_status], status_col=5, status_val=c.module_3_2_7_status)
         r += 1
+    r += 1
 
-
-def _create_3_2_8_sheet(wb, project):
-    ws = wb.create_sheet("3.2.8 Mass Distribution")
-    ws["A1"] = "Table 3.2.8: Mass Distribution"
-    ws["A1"].font = TITLE_FONT
-    ws["A3"] = "Criterion: Mi < 2·Mi+1, Mi < 2·Mi-1"
-    r = 5
-    r = _write_header_row(ws, r, ["Story", "Mass (×10³ kg)", "Mi < 2·Mi+1", "Mi < 2·Mi-1"])
-    for storey in project.get_storeys_sorted():
-        c = storey.calculations
-        row_vals = [storey.normalized_name, c.module_3_2_8_mass, c.module_3_2_8_status_upper, c.module_3_2_8_status_lower]
-        _write_data_row(ws, r, row_vals, status_col=3, status_val=c.module_3_2_8_status_upper)
+    # ── 3.2.8 Mass Distribution ──
+    ws.cell(row=r, column=1, value="3.2.8 Mass Distribution").font = TITLE_FONT
+    r += 1
+    ws.cell(row=r, column=1, value="Mi < 2·Mi+1,  Mi < 2·Mi−1").font = SUBTITLE_FONT
+    r += 1
+    r = _write_header_row(ws, r, ["Story", "Mass (×10³ kg)", "Mi < 2·Mi+1", "Mi < 2·Mi−1"])
+    for s in storeys:
+        c = s.calculations
+        _write_data_row(ws, r, [s.normalized_name, c.module_3_2_8_mass, c.module_3_2_8_status_upper, c.module_3_2_8_status_lower], status_col=3, status_val=c.module_3_2_8_status_upper)
         cell = ws.cell(row=r, column=4)
         if c.module_3_2_8_status_lower == "OK": cell.fill = GREEN_FILL
         elif c.module_3_2_8_status_lower == "NOT OK": cell.fill = RED_FILL
+        r += 1
+    r += 1
+
+    # ── Building Summary ──
+    ws.cell(row=r, column=1, value="Building Summary").font = TITLE_FONT
+    r += 1
+    for line in project.building_summary.split("\n"):
+        ws.cell(row=r, column=1, value=line)
         r += 1
 
 
