@@ -1,11 +1,21 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Upload, Database, FileCheck, AlertTriangle } from 'lucide-react'
+import { Upload, Database, FileCheck, AlertTriangle, HardDrive } from 'lucide-react'
 
-export default function ProjectUpload({ onUpload, loading }) {
+const API = 'http://localhost:8000'
+
+export default function ProjectUpload({ onUpload, onLoadLocal, loading }) {
   const [dragOver, setDragOver] = useState(false)
   const [selectedFile, setSelectedFile] = useState(null)
+  const [localFiles, setLocalFiles] = useState([])
   const fileRef = useRef(null)
+
+  useEffect(() => {
+    fetch(`${API}/api/status`)
+      .then(r => r.json())
+      .then(data => setLocalFiles(data.local_files || []))
+      .catch(() => {})
+  }, [])
 
   const handleFile = (file) => {
     if (file && (file.name.endsWith('.mdb') || file.name.endsWith('.accdb'))) {
@@ -26,6 +36,8 @@ export default function ProjectUpload({ onUpload, loading }) {
     }
   }
 
+
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -38,6 +50,50 @@ export default function ProjectUpload({ onUpload, loading }) {
         <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>
           Upload your ETABS-exported .mdb file to begin structural analysis
         </p>
+      </div>
+
+      {/* Local files */}
+      {localFiles.length > 0 && (
+        <div style={{
+          marginBottom: 24,
+          padding: 20,
+          background: 'var(--bg-card)',
+          borderRadius: 'var(--radius)',
+          border: '1px solid var(--border)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+            <HardDrive size={16} style={{ color: 'var(--pass)' }} />
+            <span style={{ fontSize: 13, fontWeight: 600 }}>Files on Server</span>
+          </div>
+          {localFiles.map(f => (
+            <div key={f} style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '10px 14px',
+              background: 'var(--bg-tertiary)',
+              borderRadius: 'var(--radius-sm)',
+              marginBottom: 8,
+            }}>
+              <span style={{ fontSize: 13, fontFamily: "'JetBrains Mono', monospace" }}>{f}</span>
+              <button
+                className="primary-btn"
+                onClick={() => onLoadLocal && onLoadLocal(f)}
+                disabled={loading}
+                style={{ padding: '6px 16px', fontSize: 12 }}
+              >
+                {loading ? 'Loading...' : 'Load'}
+              </button>
+            </div>
+          ))}
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
+            Loading from server uses cache — takes under 1 second
+          </p>
+        </div>
+      )}
+
+      <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: 12, margin: '16px 0' }}>
+        — or upload a new file —
       </div>
 
       <div

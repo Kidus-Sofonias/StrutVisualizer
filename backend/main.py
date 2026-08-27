@@ -68,27 +68,28 @@ async def get_status():
         "status": "running",
         "projects": len(projects_store),
         "project_ids": list(projects_store.keys()),
+        "local_files": [f.name for f in PROJECTS_DIR.glob("*.mdb")] + [f.name for f in PROJECTS_DIR.glob("*.accdb")],
     }
 
 
-@app.post("/api/upload")
-async def upload_database(file: UploadFile = File(...)):
-    """Upload an Access .mdb file and import data."""
-    suffix = Path(file.filename).suffix.lower()
-    if suffix not in (".mdb", ".accdb"):
-        raise HTTPException(400, f"Unsupported format: {suffix}. Use .mdb or .accdb")
+class LoadLocalRequest(BaseModel):
+    filename: str = "Bahru Model 1-3.mdb"
+
+@app.post("/api/load-local")
+async def load_local_database(req: LoadLocalRequest):
+    """Load a database file that's already in data/projects/."""
+    import traceback as tb
+    filename = req.filename
+    upload_path = PROJECTS_DIR / filename
+    if not upload_path.exists():
+        raise HTTPException(404, f"File not found: {filename}")
     
-    # Save file
-    upload_path = PROJECTS_DIR / file.filename
-    with open(upload_path, "wb") as f:
-        content = await file.read()
-        f.write(content)
-    
-    # Import
+    # Import (uses cache)
     try:
         from .importers.access_importer import import_access_database
         project, warnings = import_access_database(str(upload_path))
     except Exception as e:
+        print(f"IMPORT ERROR: {tb.format_exc()}")
         raise HTTPException(500, f"Import failed: {str(e)}")
     
     # Calculate
@@ -96,6 +97,83 @@ async def upload_database(file: UploadFile = File(...)):
         from .calculations.engine import calculate_all
         calculate_all(project)
     except Exception as e:
+        print(f"CALC ERROR: {tb.format_exc()}")
+        raise HTTPException(500, f"Calculation failed: {str(e)}")
+    
+    # Store
+    projects_store[project.project_id] = {
+        "project": project,
+        "file_path": str(upload_path),
+        "warnings": warnings,
+    }
+    
+    return {
+        "status": "success",
+        "project_id": project.project_id,
+        "project_name": project.project_name,
+        "storeys_imported": len(project.storeys),
+        "warnings": warnings,
+        "storeys": [
+            {
+                "id": s.storey_id,
+                "name": s.normalized_name,
+                "source_name": s.source_data.source_name,
+                "order": s.order,
+                "elevation": s.source_data.elevation,
+                "height": s.source_data.height,
+                "xcm": s.source_data.xcm,
+                "ycm": s.source_data.ycm,
+                "xcr": s.source_data.xcr,
+                "ycr": s.source_data.ycr,
+                "mass": s.source_data.mass,
+                "eox": s.calculations.eox,
+                "eoy": s.calculations.eoy,
+                "rx": s.calculations.rx,
+                "ry": s.calculations.ry,
+                "kx": s.calculations.kx,
+                "ky": s.calculations.ky,
+                "classification": s.calculations.overall_classification.value,
+            }
+            for s in project.get_storeys_sorted()
+        ],
+    }
+
+
+@app.post("/api/upload")
+async def upload_database(file: UploadFile = File(...)):
+    """Upload an Access .mdb file and import data."""
+    import traceback as tb
+    
+    suffix = Path(file.filename).suffix.lower()
+    if suffix not in (".mdb", ".accdb"):
+        raise HTTPException(400, f"Unsupported format: {suffix}. Use .mdb or .accdb")
+    
+    # Save file (streaming for large files)
+    upload_path = PROJECTS_DIR / file.filename
+    try:
+        with open(upload_path, "wb") as f:
+            while True:
+                chunk = await file.read(1024 * 1024)  # 1MB chunks
+                if not chunk:
+                    break
+                f.write(chunk)
+    except Exception as e:
+        raise HTTPException(500, f"File save failed: {str(e)}")
+    
+    # Import (uses cache if available)
+    try:
+        from .importers.access_importer import import_access_database
+        project, warnings = import_access_database(str(upload_path))
+    except Exception as e:
+        print(f"IMPORT ERROR: {tb.format_exc()}")
+        raise HTTPException(500, f"Import failed: {str(e)}")
+    
+    # Calculate
+    try:
+        from .calculations.engine import calculate_all
+        calculate_all(project)
+    except Exception as e:
+        print(f"CALC ERROR: {tb.format_exc()}")
         raise HTTPException(500, f"Calculation failed: {str(e)}")
     
     # Store
