@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Building2, Upload, BarChart3, FileText, GitCompare, ChevronRight, AlertTriangle, CheckCircle2, XCircle, Settings, Home } from 'lucide-react'
+import { Building2, Upload, BarChart3, FileText, GitCompare, ChevronRight, AlertTriangle, CheckCircle2, XCircle, Home, Sun, Moon, Layers } from 'lucide-react'
 import BuildingVisualization from './components/BuildingVisualization'
 import StoreyDetail from './components/StoreyDetail'
 import CalculationTable from './components/CalculationTable'
 import ProjectUpload from './components/ProjectUpload'
 import CompareView from './components/CompareView'
 import ExportPanel from './components/ExportPanel'
+import SectionView from './components/SectionView'
 import './App.css'
 
 const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
@@ -16,9 +17,19 @@ function App() {
   const [activeProject, setActiveProject] = useState(null)
   const [selectedStorey, setSelectedStorey] = useState(null)
   const [activeModule, setActiveModule] = useState('3.2.2')
+  const [activeSection, setActiveSection] = useState('3.2')
   const [activeView, setActiveView] = useState('dashboard')
   const [loading, setLoading] = useState(false)
   const [notification, setNotification] = useState(null)
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('darkMode')
+    return saved !== null ? JSON.parse(saved) : true
+  })
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light')
+    localStorage.setItem('darkMode', JSON.stringify(darkMode))
+  }, [darkMode])
 
   const showNotification = (msg, type = 'success') => {
     setNotification({ msg, type })
@@ -35,28 +46,6 @@ function App() {
     }
   }, [])
 
-  const handleLoadLocal = async (filename) => {
-    setLoading(true)
-    try {
-      const res = await fetch(`${API}/api/load-local`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(filename),
-      })
-      const data = await res.json()
-      if (data.status === 'success') {
-        showNotification(`Loaded ${data.storeys_imported} storeys from ${data.project_name}`)
-        await loadProjects()
-        await loadProject(data.project_id)
-      } else {
-        showNotification(data.detail || 'Load failed', 'error')
-      }
-    } catch (e) {
-      showNotification('Load failed: ' + e.message, 'error')
-    }
-    setLoading(false)
-  }
-
   const loadProject = useCallback(async (id) => {
     setLoading(true)
     try {
@@ -65,6 +54,7 @@ function App() {
       setActiveProject(data)
       setSelectedStorey(data.storeys[0] || null)
       setActiveView('analysis')
+      setActiveSection('3.2')
     } catch (e) {
       showNotification('Failed to load project', 'error')
     }
@@ -124,12 +114,22 @@ function App() {
     { id: 'export', icon: FileText, label: 'Export' },
   ]
 
-  const modules = [
-    '3.2.1', '3.2.2', '3.2.3', '3.2.4', '3.2.5', '3.2.6', '3.2.7', '3.2.8'
+  const sections = [
+    { id: '3.2', label: '3.2', name: 'Regularity' },
+    { id: '3.3', label: '3.3', name: 'Classification' },
+    { id: '3.4', label: '3.4', name: 'Behavior Factor' },
+    { id: '4.1', label: '4.1', name: 'Base Shear' },
+    { id: '4.2', label: '4.2', name: 'Modal' },
+    { id: '4.3', label: '4.3', name: 'Imperfection' },
+    { id: '4.4', label: '4.4', name: 'Stability' },
+    { id: '4.5', label: '4.5', name: 'Drift' },
+    { id: '4.6', label: '4.6', name: 'Overturning' },
   ]
 
+  const modules_3_2 = ['3.2.1', '3.2.2', '3.2.3', '3.2.4', '3.2.5', '3.2.6', '3.2.7', '3.2.8']
+
   return (
-    <div className="app">
+    <div className="app" data-theme={darkMode ? 'dark' : 'light'}>
       {/* Notification */}
       <AnimatePresence>
         {notification && (
@@ -186,14 +186,14 @@ function App() {
             <h1>
               {activeView === 'dashboard' && 'Project Dashboard'}
               {activeView === 'upload' && 'Import Database'}
-              {activeView === 'analysis' && 'Structural Regularity — Section 3.2'}
+              {activeView === 'analysis' && 'Structural Analysis'}
               {activeView === 'compare' && 'Compare Projects'}
               {activeView === 'export' && 'Export Report'}
             </h1>
             {activeProject && (
               <div className="header-breadcrumb">
                 <span>{activeProject.project_name}</span>
-                {selectedStorey && (
+                {selectedStorey && activeSection === '3.2' && (
                   <>
                     <ChevronRight size={14} />
                     <span>{selectedStorey.name}</span>
@@ -202,6 +202,13 @@ function App() {
               </div>
             )}
           </div>
+          <button
+            className="theme-toggle"
+            onClick={() => setDarkMode(!darkMode)}
+            title={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {darkMode ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
         </header>
 
         {/* Views */}
@@ -214,16 +221,12 @@ function App() {
           )}
 
           {activeView === 'dashboard' && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="dashboard"
-            >
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="dashboard">
               {projects.length === 0 ? (
                 <div className="empty-state">
                   <Building2 size={64} strokeWidth={1} />
                   <h2>No Projects Loaded</h2>
-                  <p>Import an Access database (.mdb) to begin analysis</p>
+                  <p>Import an Access database (.mdb) to begin structural analysis</p>
                   <button className="primary-btn" onClick={() => setActiveView('upload')}>
                     <Upload size={18} /> Import Database
                   </button>
@@ -231,12 +234,7 @@ function App() {
               ) : (
                 <div className="dashboard-grid">
                   {projects.map(p => (
-                    <motion.div
-                      key={p.id}
-                      className="dash-card"
-                      whileHover={{ scale: 1.02 }}
-                      onClick={() => loadProject(p.id)}
-                    >
+                    <motion.div key={p.id} className="dash-card" whileHover={{ scale: 1.02 }} onClick={() => loadProject(p.id)}>
                       <Building2 size={32} className="dash-icon" />
                       <h3>{p.name}</h3>
                       <div className="dash-stats">
@@ -258,58 +256,73 @@ function App() {
 
           {activeView === 'upload' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <ProjectUpload onUpload={handleUpload} onLoadLocal={handleLoadLocal} loading={loading} />
+              <ProjectUpload onUpload={handleUpload} loading={loading} />
             </motion.div>
           )}
 
           {activeView === 'analysis' && activeProject && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="analysis-layout"
-            >
-              {/* Module Tabs */}
-              <div className="module-tabs">
-                {modules.map(m => (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="analysis-layout">
+              {/* Section Tabs */}
+              <div className="section-tabs">
+                {sections.map(s => (
                   <button
-                    key={m}
-                    className={`module-tab ${activeModule === m ? 'active' : ''}`}
-                    onClick={() => setActiveModule(m)}
+                    key={s.id}
+                    className={`section-tab ${activeSection === s.id ? 'active' : ''}`}
+                    onClick={() => setActiveSection(s.id)}
                   >
-                    {m}
+                    <span className="section-label">{s.label}</span>
+                    <span className="section-name">{s.name}</span>
                   </button>
                 ))}
               </div>
 
-              <div className="analysis-content">
-                {/* Building Visualization */}
-                <div className="building-panel">
-                  <BuildingVisualization
+              {/* Section Content */}
+              {activeSection === '3.2' && (
+                <>
+                  <div className="module-tabs">
+                    {modules_3_2.map(m => (
+                      <button
+                        key={m}
+                        className={`module-tab ${activeModule === m ? 'active' : ''}`}
+                        onClick={() => setActiveModule(m)}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="analysis-content">
+                    <div className="building-panel">
+                      <BuildingVisualization
+                        storeys={activeProject.storeys}
+                        selectedStorey={selectedStorey}
+                        onSelectStorey={setSelectedStorey}
+                        activeModule={activeModule}
+                      />
+                    </div>
+                    <div className="detail-panel">
+                      {selectedStorey && (
+                        <StoreyDetail
+                          storey={selectedStorey}
+                          module={activeModule}
+                          projectName={activeProject.project_name}
+                        />
+                      )}
+                    </div>
+                  </div>
+                  <CalculationTable
                     storeys={activeProject.storeys}
-                    selectedStorey={selectedStorey}
+                    module={activeModule}
                     onSelectStorey={setSelectedStorey}
-                    activeModule={activeModule}
                   />
-                </div>
+                </>
+              )}
 
-                {/* Detail Panel */}
-                <div className="detail-panel">
-                  {selectedStorey && (
-                    <StoreyDetail
-                      storey={selectedStorey}
-                      module={activeModule}
-                      projectName={activeProject.project_name}
-                    />
-                  )}
-                </div>
-              </div>
-
-              {/* Full Table */}
-              <CalculationTable
-                storeys={activeProject.storeys}
-                module={activeModule}
-                onSelectStorey={setSelectedStorey}
-              />
+              {activeSection !== '3.2' && (
+                <SectionView
+                  section={activeSection}
+                  project={activeProject}
+                />
+              )}
             </motion.div>
           )}
 
@@ -321,19 +334,9 @@ function App() {
             </div>
           )}
 
-          {activeView === 'compare' && (
-            <CompareView
-              projects={projects}
-              api={API}
-            />
-          )}
+          {activeView === 'compare' && <CompareView projects={projects} api={API} />}
 
-          {activeView === 'export' && activeProject && (
-            <ExportPanel
-              project={activeProject}
-              onExport={handleExport}
-            />
-          )}
+          {activeView === 'export' && activeProject && <ExportPanel project={activeProject} onExport={handleExport} />}
 
           {activeView === 'export' && !activeProject && (
             <div className="empty-state">

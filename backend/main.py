@@ -100,11 +100,20 @@ async def load_local_database(req: LoadLocalRequest):
         print(f"CALC ERROR: {tb.format_exc()}")
         raise HTTPException(500, f"Calculation failed: {str(e)}")
     
+    # Import extended data
+    try:
+        from .importers.extended_importer import import_extended_data
+        ext_data = import_extended_data(str(upload_path))
+    except Exception as e:
+        ext_data = {}
+        print(f"Extended import warning: {e}")
+    
     # Store
     projects_store[project.project_id] = {
         "project": project,
         "file_path": str(upload_path),
         "warnings": warnings,
+        "ext_data": ext_data,
     }
     
     return {
@@ -176,11 +185,20 @@ async def upload_database(file: UploadFile = File(...)):
         print(f"CALC ERROR: {tb.format_exc()}")
         raise HTTPException(500, f"Calculation failed: {str(e)}")
     
+    # Import extended data
+    try:
+        from .importers.extended_importer import import_extended_data
+        ext_data = import_extended_data(str(upload_path))
+    except Exception as e:
+        ext_data = {}
+        print(f"Extended import warning: {e}")
+    
     # Store
     projects_store[project.project_id] = {
         "project": project,
         "file_path": str(upload_path),
         "warnings": warnings,
+        "ext_data": ext_data,
     }
     
     return {
@@ -231,13 +249,33 @@ async def list_projects():
     }
 
 
-@app.get("/api/projects/{project_id}")
-async def get_project(project_id: str):
-    """Get detailed project data."""
-    if project_id not in projects_store:
-        raise HTTPException(404, "Project not found")
+def _build_project_response(project):
+    """Build full project response with all sections."""
+    from .calculations.engine_extended import (
+        calculate_section_3_3, calculate_section_3_4, calculate_section_4_1,
+        calculate_section_4_2, calculate_section_4_3, calculate_section_4_4,
+        calculate_section_4_5, calculate_section_4_6,
+    )
+    ext_data = projects_store.get(project.project_id, {}).get("ext_data")
     
-    project = projects_store[project_id]["project"]
+    sections = {}
+    if ext_data:
+        try:
+            sections["3.3"] = calculate_section_3_3(project, ext_data)
+            sections["3.4"] = calculate_section_3_4(project, sections["3.3"])
+            sections["4.1"] = calculate_section_4_1(project, sections["3.4"], ext_data)
+            sections["4.2"] = calculate_section_4_2(ext_data)
+            sections["4.3"] = calculate_section_4_3(project, ext_data)
+            sections["4.4"] = calculate_section_4_4(project, ext_data)
+            sections["4.5"] = calculate_section_4_5(project, ext_data)
+            sections["4.6"] = calculate_section_4_6(project, sections.get("4.1", {}), ext_data)
+        except Exception as e:
+            print(f"Section calc error: {e}")
+    
+    # Cache sections for export
+    if project.project_id in projects_store:
+        projects_store[project.project_id]["sections"] = sections
+    
     return {
         "project_id": project.project_id,
         "project_name": project.project_name,
@@ -246,6 +284,7 @@ async def get_project(project_id: str):
         "lmax": project.lmax,
         "lmin": project.lmin,
         "building_summary": project.building_summary,
+        "sections": sections,
         "storeys": [
             {
                 "id": s.storey_id,
@@ -300,6 +339,16 @@ async def get_project(project_id: str):
     }
 
 
+@app.get("/api/projects/{project_id}")
+async def get_project(project_id: str):
+    """Get detailed project data."""
+    if project_id not in projects_store:
+        raise HTTPException(404, "Project not found")
+    
+    project = projects_store[project_id]["project"]
+    return _build_project_response(project)
+
+
 @app.get("/api/projects/{project_id}/storeys/{storey_id}")
 async def get_storey(project_id: str, storey_id: str):
     """Get detailed storey data."""
@@ -346,11 +395,15 @@ async def export_report(req: ExportRequest):
     project = projects_store[req.project_id]["project"]
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     
+    # Get sections data if available
+    ext_store = projects_store.get(req.project_id, {})
+    sections = ext_store.get("sections", {})
+    
     if req.format == "excel":
         filename = f"report_{project.project_name}_{timestamp}.xlsx"
         output_path = EXPORTS_DIR / filename
         from .exporters.excel_exporter import export_to_excel
-        export_to_excel(project, str(output_path))
+        export_to_excel(project, str(output_path), sections=sections)
     elif req.format == "pdf":
         filename = f"report_{project.project_name}_{timestamp}.pdf"
         output_path = EXPORTS_DIR / filename
