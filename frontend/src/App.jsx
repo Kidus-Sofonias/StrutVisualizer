@@ -9,7 +9,7 @@ import CompareView from './components/CompareView'
 import ExportPanel from './components/ExportPanel'
 import './App.css'
 
-const API = 'http://localhost:8000'
+const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 function App() {
   const [projects, setProjects] = useState([])
