@@ -50,19 +50,30 @@ def import_extended_data(file_path: str) -> Dict:
     # 7. Total storey shears for EQX/EQY (for 4.6 overturning)
     data["eqx_shears"] = _parse_eqx_shears(parser)
 
+    # Convert defaultdicts to regular dicts for pickling
+    for key in data:
+        if isinstance(data[key], dict):
+            data[key] = {k: dict(v) if isinstance(v, defaultdict) else v for k, v in data[key].items()}
+
     # Save cache
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     try:
         with open(cache_file, "wb") as f:
             pickle.dump(data, f)
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Extended cache save failed: {e}")
 
     return data
 
 
 def _parse_column_forces(parser) -> Dict:
-    """Aggregate Column Forces V2/V3 per storey for key load cases."""
+    """Aggregate Column Forces V2/V3 per storey for key load cases.
+    
+    Column Forces table has multiple Loc entries per column member
+    (integration points along height: 0.0, 0.6, 1.2, ...). 
+    We must only take ONE location per member to avoid double-counting.
+    Use Loc=0 (bottom) for the base shear.
+    """
     try:
         table = parser.parse_table("Column Forces")
         if not table:
@@ -75,15 +86,22 @@ def _parse_column_forces(parser) -> Dict:
     locs = table.get("Loc", [])
     v2 = table.get("V2", [])
     v3 = table.get("V3", [])
+    members = table.get("ColumnSection", table.get("FrameSection", []))
 
     target_loads = {"UL1", "UL2", "EQX", "EQY", "RSEQX", "RSEQY"}
-    result = {}  # {load: {story: {"V2": sum, "V3": sum}}}
+    # Only use Loc=0 (bottom of element) to get base shear
+    result = {}
 
     for i in range(len(stories)):
         load = loads[i] if i < len(loads) else None
         if load not in target_loads:
             continue
-        # Only top-of-element (Loc=0 or smallest Loc)
+        
+        loc = locs[i] if i < len(locs) else 0
+        # Filter: only take Loc == 0 (bottom)
+        if loc != 0:
+            continue
+        
         story = stories[i] if i < len(stories) else None
         if not story:
             continue
