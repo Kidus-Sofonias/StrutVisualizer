@@ -1,0 +1,9 @@
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+python-multipart>=0.0.6
+jinja2>=3.1.2
+pyodbc>=5.0.1
+openpyxl>=3.1.2
+pydantic>=2.5.0
+access-parser>=0.0.6
+reportlab>=4.0.0
