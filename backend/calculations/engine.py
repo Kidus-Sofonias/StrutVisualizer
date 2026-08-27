@@ -46,13 +46,14 @@ def calculate_all(project: Project) -> None:
             val = calc.kmt / calc.kfx
             calc.ry = round(math.sqrt(abs(val)), 3) if val > 0 else None
 
-        # 3.2.4 — Eccentricity vs Gyration: |eox| <= 0.3*rx, |eoy| <= 0.3*ry
-        if calc.eox is not None and calc.rx is not None:
-            calc.module_3_2_4_limit_x = round(0.3 * calc.rx, 3)
-            calc.module_3_2_4_eox_status = "OK" if abs(calc.eox) <= calc.module_3_2_4_limit_x else "NOT OK"
-        if calc.eoy is not None and calc.ry is not None:
-            calc.module_3_2_4_limit_y = round(0.3 * calc.ry, 3)
-            calc.module_3_2_4_eoy_status = "OK" if abs(calc.eoy) <= calc.module_3_2_4_limit_y else "NOT OK"
+        # 3.2.4 — Eccentricity vs Gyration (only for main storeys)
+        if _is_main_storey(storey.normalized_name):
+            if calc.eox is not None and calc.rx is not None:
+                calc.module_3_2_4_limit_x = round(0.3 * calc.rx, 3)
+                calc.module_3_2_4_eox_status = "OK" if abs(calc.eox) <= calc.module_3_2_4_limit_x else "NOT OK"
+            if calc.eoy is not None and calc.ry is not None:
+                calc.module_3_2_4_limit_y = round(0.3 * calc.ry, 3)
+                calc.module_3_2_4_eoy_status = "OK" if abs(calc.eoy) <= calc.module_3_2_4_limit_y else "NOT OK"
 
         # 3.2.5 — Torsional vs Gyration: rx >= ls, ry >= ls
         # ls = floor radius of gyration per storey
@@ -96,16 +97,17 @@ def calculate_all(project: Project) -> None:
             if sd.vy_eqy is not None and sd.uy_eqy is not None and abs(sd.uy_eqy) > 1e-10:
                 calc.ky = round(abs(sd.vy_eqy / sd.uy_eqy), 2)
 
-        # 3.2.8 — Mass Distribution
+        # 3.2.8 — Mass Distribution (only for main storeys)
         calc.module_3_2_8_mass = sd.mass
-        if i < len(storeys) - 1:
-            next_mass = storeys[i + 1].source_data.mass
-            if sd.mass is not None and next_mass is not None and next_mass > 0:
-                calc.module_3_2_8_status_upper = "OK" if sd.mass < 2 * next_mass else "NOT OK"
-        if i > 0:
-            prev_mass = storeys[i - 1].source_data.mass
-            if sd.mass is not None and prev_mass is not None and prev_mass > 0:
-                calc.module_3_2_8_status_lower = "OK" if sd.mass < 2 * prev_mass else "NOT OK"
+        if _is_main_storey(storey.normalized_name):
+            if i < len(storeys) - 1:
+                next_mass = storeys[i + 1].source_data.mass
+                if sd.mass is not None and next_mass is not None and next_mass > 0:
+                    calc.module_3_2_8_status_upper = "OK" if sd.mass < 2 * next_mass else "NOT OK"
+            if i > 0:
+                prev_mass = storeys[i - 1].source_data.mass
+                if sd.mass is not None and prev_mass is not None and prev_mass > 0:
+                    calc.module_3_2_8_status_lower = "OK" if sd.mass < 2 * prev_mass else "NOT OK"
 
         storey.calculations = calc
 
@@ -153,11 +155,31 @@ def _compute_floor_radius(storey: Storey) -> float:
     return round(math.sqrt((Lx**2 + Ly**2) / K), 3)
 
 
+def _is_main_storey(name: str) -> bool:
+    """Check if a storey is a main structural storey (not base/mechanical)."""
+    upper = name.upper()
+    # Exclude: UP ROOF FL (mechanical penthouse), BASE FL/1/2 (foundation)
+    if "BASE" in upper:
+        return False
+    if "UP ROOF" in upper:
+        return False
+    return True
+
+
 def _calculate_stiffness_comparisons(storeys: List[Storey]) -> None:
-    """Calculate Ki > 0.7*Ki+1 for stiffness checks."""
+    """Calculate Ki > 0.7*Ki+1 for stiffness checks.
+    Only compare main structural storeys (excludes BASE, UP ROOF FL).
+    Matches the Excel workbook scope: ROOF FL through 1ST FL.
+    """
     for i in range(len(storeys) - 1):
         curr = storeys[i]
         next_s = storeys[i + 1]
+
+        # Skip non-main storeys for comparison status
+        if not _is_main_storey(curr.normalized_name):
+            curr.calculations.module_3_2_6_status = "N/A"
+            curr.calculations.module_3_2_7_status = "N/A"
+            continue
 
         # 3.2.6 — Stiffness X comparison
         if curr.calculations.kx is not None and next_s.calculations.kx is not None:
@@ -187,6 +209,13 @@ def _calculate_building_summary(project: Project) -> None:
     for storey in storeys:
         reasons = []
         c = storey.calculations
+        is_main = _is_main_storey(storey.normalized_name)
+
+        if not is_main:
+            # Non-main storeys (BASE, UP ROOF) are excluded from classification
+            c.failure_reasons = []
+            c.overall_classification = ClassificationResult.PASS
+            continue
 
         if c.module_3_2_4_eox_status == "NOT OK":
             reasons.append("3.2.4 X-direction eccentricity exceeds limit")
@@ -212,9 +241,10 @@ def _calculate_building_summary(project: Project) -> None:
         else:
             c.overall_classification = ClassificationResult.PASS
 
-    # Building-level summary
-    total = len(storeys)
-    regular = sum(1 for s in storeys if s.calculations.overall_classification == ClassificationResult.PASS)
+    # Building-level summary — only count main storeys
+    main_storeys = [s for s in storeys if _is_main_storey(s.normalized_name)]
+    total = len(main_storeys)
+    regular = sum(1 for s in main_storeys if s.calculations.overall_classification == ClassificationResult.PASS)
     irregular = total - regular
 
     summary_lines = [
