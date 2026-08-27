@@ -10,7 +10,7 @@ import ExportPanel from './components/ExportPanel'
 import SectionView from './components/SectionView'
 import './App.css'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+const API = import.meta.env.VITE_API_URL || 'http://localhost:8001'
 
 function App() {
   const [projects, setProjects] = useState([])

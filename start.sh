@@ -33,7 +33,7 @@ fi
 
 # Start backend
 echo "[INFO] Starting backend server on http://localhost:8000"
-cd backend && python3 -m uvicorn main:app --reload --port 8000 &
+cd backend && python3 -m uvicorn main:app --reload --port 8001 &
 BACKEND_PID=$!
 cd ..
 

@@ -2,11 +2,20 @@
 Structural Engineering Analysis Application — FastAPI Backend
 """
 import os
+import sys
 import json
 import shutil
 from pathlib import Path
 from datetime import datetime
 from typing import Optional, List, Dict
+
+# Ensure parent directory is on path for both `uvicorn main:app` and `python -m backend.main`
+_backend_dir = Path(__file__).parent
+_parent_dir = _backend_dir.parent
+if str(_parent_dir) not in sys.path:
+    sys.path.insert(0, str(_parent_dir))
+if str(_backend_dir) not in sys.path:
+    sys.path.insert(0, str(_backend_dir))
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
@@ -86,7 +95,7 @@ async def load_local_database(req: LoadLocalRequest):
     
     # Import (uses cache)
     try:
-        from .importers.access_importer import import_access_database
+        from importers.access_importer import import_access_database
         project, warnings = import_access_database(str(upload_path))
     except Exception as e:
         print(f"IMPORT ERROR: {tb.format_exc()}")
@@ -94,7 +103,7 @@ async def load_local_database(req: LoadLocalRequest):
     
     # Calculate
     try:
-        from .calculations.engine import calculate_all
+        from calculations.engine import calculate_all
         calculate_all(project)
     except Exception as e:
         print(f"CALC ERROR: {tb.format_exc()}")
@@ -102,7 +111,7 @@ async def load_local_database(req: LoadLocalRequest):
     
     # Import extended data
     try:
-        from .importers.extended_importer import import_extended_data
+        from importers.extended_importer import import_extended_data
         ext_data = import_extended_data(str(upload_path))
     except Exception as e:
         ext_data = {}
@@ -171,7 +180,7 @@ async def upload_database(file: UploadFile = File(...)):
     
     # Import (uses cache if available)
     try:
-        from .importers.access_importer import import_access_database
+        from importers.access_importer import import_access_database
         project, warnings = import_access_database(str(upload_path))
     except Exception as e:
         print(f"IMPORT ERROR: {tb.format_exc()}")
@@ -179,7 +188,7 @@ async def upload_database(file: UploadFile = File(...)):
     
     # Calculate
     try:
-        from .calculations.engine import calculate_all
+        from calculations.engine import calculate_all
         calculate_all(project)
     except Exception as e:
         print(f"CALC ERROR: {tb.format_exc()}")
@@ -187,7 +196,7 @@ async def upload_database(file: UploadFile = File(...)):
     
     # Import extended data
     try:
-        from .importers.extended_importer import import_extended_data
+        from importers.extended_importer import import_extended_data
         ext_data = import_extended_data(str(upload_path))
     except Exception as e:
         ext_data = {}
@@ -251,7 +260,7 @@ async def list_projects():
 
 def _build_project_response(project):
     """Build full project response with all sections."""
-    from .calculations.engine_extended import (
+    from calculations.engine_extended import (
         calculate_section_3_3, calculate_section_3_4, calculate_section_4_1,
         calculate_section_4_2, calculate_section_4_3, calculate_section_4_4,
         calculate_section_4_5, calculate_section_4_6,
@@ -402,12 +411,12 @@ async def export_report(req: ExportRequest):
     if req.format == "excel":
         filename = f"report_{project.project_name}_{timestamp}.xlsx"
         output_path = EXPORTS_DIR / filename
-        from .exporters.excel_exporter import export_to_excel
+        from exporters.excel_exporter import export_to_excel
         export_to_excel(project, str(output_path), sections=sections)
     elif req.format == "pdf":
         filename = f"report_{project.project_name}_{timestamp}.pdf"
         output_path = EXPORTS_DIR / filename
-        from .exporters.pdf_exporter import export_to_pdf
+        from exporters.pdf_exporter import export_to_pdf
         export_to_pdf(project, str(output_path))
     else:
         raise HTTPException(400, f"Unknown format: {req.format}")

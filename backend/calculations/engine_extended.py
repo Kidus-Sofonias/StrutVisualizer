@@ -10,7 +10,7 @@ FIXES vs previous version:
 """
 import math
 from typing import Dict, List, Optional
-from ..models.project import Project, Storey
+from models.project import Project, Storey
 
 
 def calculate_section_3_3(project: Project, ext_data: Dict) -> Dict:

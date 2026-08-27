@@ -7,7 +7,7 @@ Torsional radius uses unit load (UL1/UL2/UL3) displacements.
 """
 import math
 from typing import List, Tuple
-from ..models.project import Project, Storey, StoreyCalculation, ClassificationResult
+from models.project import Project, Storey, StoreyCalculation, ClassificationResult
 
 
 def calculate_all(project: Project) -> None:

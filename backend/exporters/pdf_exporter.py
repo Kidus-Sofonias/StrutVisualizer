@@ -8,7 +8,7 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch, mm
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 
-from ..models.project import Project, ClassificationResult
+from models.project import Project, ClassificationResult
 
 
 def export_to_pdf(project: Project, output_path: str) -> str:

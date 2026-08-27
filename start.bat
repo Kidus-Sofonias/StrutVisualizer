@@ -52,7 +52,7 @@ echo Press Ctrl+C to stop.
 echo.
 
 REM Start both servers
-start "Backend" cmd /c "cd backend && python -m uvicorn main:app --reload --port 8000"
+start "Backend" cmd /c "cd backend && python -m uvicorn main:app --reload --port 8001"
 timeout /t 3 /nobreak >nul
 start "Frontend" cmd /c "cd frontend && npm run dev"
 

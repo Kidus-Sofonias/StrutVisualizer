@@ -9,7 +9,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import Optional, List, Dict, Tuple
 
-from ..models.project import Project, Storey, StoreySourceData
+from models.project import Project, Storey, StoreySourceData
 
 CACHE_DIR = Path(__file__).parent.parent.parent / "data" / "cache"
 

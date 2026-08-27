@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Upload, Database, FileCheck, AlertTriangle, HardDrive } from 'lucide-react'
 
-const API = 'http://localhost:8000'
+const API = import.meta.env.VITE_API_URL || 'http://localhost:8001'
 
 export default function ProjectUpload({ onUpload, onLoadLocal, loading }) {
   const [dragOver, setDragOver] = useState(false)

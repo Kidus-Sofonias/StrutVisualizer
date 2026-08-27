@@ -8,7 +8,7 @@ from typing import Optional, Dict
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
-from ..models.project import Project, ClassificationResult
+from models.project import Project, ClassificationResult
 
 
 # Style constants
