@@ -49,6 +49,7 @@ def import_access_database(file_path: str) -> Tuple[Project, List[str]]:
     shears_data = raw_data["shears_data"]
     disp_data = raw_data["disp_data"]
     mass_data = raw_data["mass_data"]
+    area_assign = raw_data.get("area_assign", {})
 
     # Build storeys from all available data
     # Use CMR data as primary source (most complete), then add from others
@@ -138,6 +139,24 @@ def import_access_database(file_path: str) -> Tuple[Project, List[str]]:
         storeys.append(storey)
 
     project.storeys = storeys
+
+    # Compute ls_slab (radius of gyration from slab elements) for each storey
+    for storey in storeys:
+        orig = storey.source_data.source_name
+        if orig in area_assign and storey.source_data.xcm is not None and storey.source_data.ycm is not None:
+            storey.source_data.ls_slab = _compute_ls_from_slabs(
+                area_assign[orig], storey.source_data.xcm, storey.source_data.ycm
+            )
+        # Also try normalized name
+        if storey.source_data.ls_slab is None:
+            for key in area_assign:
+                if key.upper() == orig.upper() or key.upper() == storey.normalized_name.upper():
+                    if storey.source_data.xcm is not None and storey.source_data.ycm is not None:
+                        storey.source_data.ls_slab = _compute_ls_from_slabs(
+                            area_assign[key], storey.source_data.xcm, storey.source_data.ycm
+                        )
+                    break
+
     return project, warnings
 
 
@@ -187,6 +206,7 @@ def _parse_all_tables(parser, file_path: str, warnings: List[str]) -> dict:
         "shears_data": _import_story_shears(parser, warnings),
         "disp_data": _import_displacements(parser, warnings),
         "mass_data": _import_diaphragm_mass(parser, warnings),
+        "area_assign": _import_area_assign(parser, warnings),
     }
 
 
@@ -363,6 +383,71 @@ def _import_diaphragm_mass(parser, warnings: List[str]) -> Dict:
         warnings.append(f"Error reading Diaphragm Mass Data: {e}")
 
     return data
+
+
+def _import_area_assign(parser, warnings: List[str]) -> Dict:
+    """Import Area Assign table for computing per-storey ls."""
+    data = {}
+    try:
+        table = parser.parse_table("Area Assign")
+        if not table:
+            warnings.append("Area Assign table not found")
+            return data
+
+        stories = table.get("Story", [])
+        section_types = table.get("SectionType", [])
+        obj_areas = table.get("ObjectArea", [])
+        polar_inertias = table.get("PolarInertia", [])
+        centroid_xs = table.get("CentroidX", [])
+        centroid_ys = table.get("CentroidY", [])
+
+        for i in range(len(stories)):
+            name = stories[i] if i < len(stories) else None
+            stype = section_types[i] if i < len(section_types) else ""
+            if not name or stype != "Slab":
+                continue
+
+            area = obj_areas[i] if i < len(obj_areas) else None
+            pi_val = polar_inertias[i] if i < len(polar_inertias) else None
+            cx = centroid_xs[i] if i < len(centroid_xs) else None
+            cy = centroid_ys[i] if i < len(centroid_ys) else None
+
+            if name not in data:
+                data[name] = {"slab_cx": [], "slab_cy": [], "slab_area": [], "slab_pi": []}
+
+            if area and area > 0 and pi_val is not None:
+                data[name]["slab_cx"].append(cx if cx is not None else 0)
+                data[name]["slab_cy"].append(cy if cy is not None else 0)
+                data[name]["slab_area"].append(area)
+                data[name]["slab_pi"].append(pi_val)
+    except Exception as e:
+        warnings.append(f"Error reading Area Assign: {e}")
+    return data
+
+
+def _compute_ls_from_slabs(slabs_data: dict, xcm: float, ycm: float):
+    """Compute floor radius of gyration using parallel axis theorem."""
+    import math
+    if not slabs_data:
+        return None
+    if xcm is None or ycm is None:
+        return None
+    areas = slabs_data.get("slab_area", [])
+    if not areas:
+        return None
+    total_ip = 0.0
+    total_area = 0.0
+    for j in range(len(areas)):
+        a = areas[j]
+        pi_val = slabs_data["slab_pi"][j] if j < len(slabs_data.get("slab_pi", [])) else 0
+        cx = slabs_data["slab_cx"][j] if j < len(slabs_data.get("slab_cx", [])) else 0
+        cy = slabs_data["slab_cy"][j] if j < len(slabs_data.get("slab_cy", [])) else 0
+        dist_sq = (cx - xcm) ** 2 + (cy - ycm) ** 2
+        total_ip += pi_val + a * dist_sq
+        total_area += a
+    if total_area > 0:
+        return round(math.sqrt(total_ip / total_area), 3)
+    return None
 
 
 # ─── Name normalization ─────────────────────────────────────────────────────

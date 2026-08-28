@@ -23,6 +23,7 @@ class StoreySourceData:
     height: Optional[float] = None
     mass: Optional[float] = None
     mmi: Optional[float] = None  # Mass Moment of Inertia
+    ls_slab: Optional[float] = None  # Floor radius of gyration from slab elements
     xcm: Optional[float] = None
     ycm: Optional[float] = None
     xcr: Optional[float] = None

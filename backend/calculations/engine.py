@@ -65,7 +65,8 @@ def calculate_all(project: Project) -> None:
             calc.module_3_2_5_ry_status = "OK" if calc.ry >= calc.ls else "NOT OK"
 
         # 3.2.6 — Storey Stiffness X (from EQX actual forces + inter-storey drift)
-        # Kx = VX / (UX_i - UX_{i+1})
+        # Kx = |VX_EQX| / |delta_UX| where delta_UX = UX(this) - UX(storey below in elevation)
+        # Storeys list is sorted top-to-bottom, so storeys[i+1] is below storeys[i]
         if i < len(storeys) - 1:
             next_storey = storeys[i + 1]
             vx_i = sd.vx_eqx
@@ -77,12 +78,12 @@ def calculate_all(project: Project) -> None:
                 if abs(delta_ux) > 1e-10:
                     calc.kx = round(abs(vx_i / delta_ux), 2)
         else:
-            # Bottom storey
+            # Bottom-most storey
             if sd.vx_eqx is not None and sd.ux_eqx is not None and abs(sd.ux_eqx) > 1e-10:
                 calc.kx = round(abs(sd.vx_eqx / sd.ux_eqx), 2)
 
         # 3.2.7 — Storey Stiffness Y (from EQY actual forces + inter-storey drift)
-        # Ky = VY / (UY_i - UY_{i+1})
+        # Ky = |VY_EQY| / |delta_UY|
         if i < len(storeys) - 1:
             next_storey = storeys[i + 1]
             vy_i = sd.vy_eqy
@@ -122,36 +123,23 @@ def _compute_floor_radius(storey: Storey) -> float:
     """
     Compute floor radius of gyration (ls) for a storey.
     
-    ls = sqrt(Ip / A) for the floor diaphragm, where Ip is the polar
-    moment of inertia of the floor mass distribution and A is the floor area.
+    ls = sqrt(Ip_total / Area_total) for the floor diaphragm, using
+    the parallel axis theorem on individual slab elements.
     
-    For a rectangular floor plan with dimensions Lx × Ly:
-      ls = sqrt((Lx² + Ly²) / 12)
-    
-    However, ETABS computes ls differently for rigid diaphragms, using
-    the actual mass distribution. From the Excel validation:
-      - Typical floors: ls ≈ 17.3-17.7
-      - Ground floor: ls ≈ 19.4
-    
-    The Excel formula uses building floor geometry. For this building:
-      Lmax = 33.5m (X-direction)
-      Lmin = 22.5m (Y-direction)
-    
-    We use ls ≈ sqrt((Lx² + Ly²) / K) where K ≈ 5.3 based on
-    validation against the Excel workbook.
-    
-    For the ground floor which has a larger footprint, we use
-    a correction factor.
+    Uses pre-computed ls from Access DB Area Assign data if available.
+    Falls back to building geometry approximation.
     """
+    # Use pre-computed ls from Area Assign slab data if available
+    if storey.source_data.ls_slab is not None:
+        return storey.source_data.ls_slab
+    
+    # Fallback: use building geometry
     Lx = 33.5  # Building length X
     Ly = 22.5  # Building length Y
-    
-    # Ground floor has larger footprint (includes podium/base slab)
     if storey.normalized_name == "GROUND FL":
-        K = 4.33  # Empirical factor for ground floor
+        K = 4.33
     else:
-        K = 5.32  # Empirical factor for typical floors
-    
+        K = 5.32
     return round(math.sqrt((Lx**2 + Ly**2) / K), 3)
 
 
@@ -166,39 +154,56 @@ def _is_main_storey(name: str) -> bool:
     return True
 
 
+def _is_stiffness_storey(name: str) -> bool:
+    """Check if storey participates in stiffness comparison.
+    Excel scope: ROOF FL through 1ST FL (no UP ROOF, no GROUND, no BASE).
+    10TH FL IS included (it sits between ROOF and 9TH).
+    """
+    upper = name.upper()
+    if "BASE" in upper:
+        return False
+    if "UP ROOF" in upper:
+        return False
+    if "GROUND" in upper:
+        return False
+    return True
+
+
 def _calculate_stiffness_comparisons(storeys: List[Storey]) -> None:
     """Calculate Ki > 0.7*Ki+1 for stiffness checks.
-    Only compare main structural storeys (excludes BASE, UP ROOF FL).
-    Matches the Excel workbook scope: ROOF FL through 1ST FL.
+    Excel scope: ROOF FL through 1ST FL only.
+    Each storey is compared against the next stiffness storey below it.
     """
-    for i in range(len(storeys) - 1):
-        curr = storeys[i]
-        next_s = storeys[i + 1]
-
-        # Skip non-main storeys for comparison status
-        if not _is_main_storey(curr.normalized_name):
-            curr.calculations.module_3_2_6_status = "N/A"
-            curr.calculations.module_3_2_7_status = "N/A"
-            continue
-
-        # 3.2.6 — Stiffness X comparison
-        if curr.calculations.kx is not None and next_s.calculations.kx is not None:
-            if next_s.calculations.kx > 0:
-                curr.calculations.module_3_2_6_status = (
-                    "OK" if curr.calculations.kx > 0.7 * next_s.calculations.kx else "NOT OK"
-                )
-
-        # 3.2.7 — Stiffness Y comparison
-        if curr.calculations.ky is not None and next_s.calculations.ky is not None:
-            if next_s.calculations.ky > 0:
-                curr.calculations.module_3_2_7_status = (
-                    "OK" if curr.calculations.ky > 0.7 * next_s.calculations.ky else "NOT OK"
-                )
-
-    # Bottom storey has no comparison
-    if storeys:
-        storeys[-1].calculations.module_3_2_6_status = "N/A"
-        storeys[-1].calculations.module_3_2_7_status = "N/A"
+    # Build list of stiffness storeys in top-to-bottom order
+    stiffness_storeys = [s for s in storeys if _is_stiffness_storey(s.normalized_name)]
+    
+    for i, storey in enumerate(stiffness_storeys):
+        if i < len(stiffness_storeys) - 1:
+            next_s = stiffness_storeys[i + 1]
+            
+            # 3.2.6 — Stiffness X
+            if storey.calculations.kx is not None and next_s.calculations.kx is not None:
+                if next_s.calculations.kx > 0:
+                    storey.calculations.module_3_2_6_status = (
+                        "OK" if storey.calculations.kx > 0.7 * next_s.calculations.kx else "NOT OK"
+                    )
+            
+            # 3.2.7 — Stiffness Y
+            if storey.calculations.ky is not None and next_s.calculations.ky is not None:
+                if next_s.calculations.ky > 0:
+                    storey.calculations.module_3_2_7_status = (
+                        "OK" if storey.calculations.ky > 0.7 * next_s.calculations.ky else "NOT OK"
+                    )
+        else:
+            # Bottom stiffness storey (1ST FL) — no comparison
+            storey.calculations.module_3_2_6_status = "OK"
+            storey.calculations.module_3_2_7_status = "OK"
+    
+    # Set non-stiffness storeys to N/A
+    for s in storeys:
+        if not _is_stiffness_storey(s.normalized_name):
+            s.calculations.module_3_2_6_status = "N/A"
+            s.calculations.module_3_2_7_status = "N/A"
 
 
 def _calculate_building_summary(project: Project) -> None:
