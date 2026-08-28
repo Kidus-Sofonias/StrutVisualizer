@@ -7,6 +7,10 @@ import {
 } from 'chart.js'
 import { useState } from 'react'
 import { engineeringText } from '../data/engineeringText'
+import {
+  COLORS, forceDistributionChart, modalParticipationChart,
+  imperfectionForcesChart, overturningChart, chartCardStyle,
+} from '../config/chartConfig'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler)
 
@@ -152,11 +156,8 @@ function EngineeringText({ sectionKey, subKey }) {
 
 function ChartCard({ title, children }) {
   return (
-    <div style={{
-      background: 'var(--bg-secondary)', borderRadius: 8, padding: 20,
-      marginBottom: 20, border: '1px solid var(--border)',
-    }}>
-      <h4 style={{ fontSize: 13, color: 'var(--accent)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>{title}</h4>
+    <div style={chartCardStyle}>
+      {title && <h4 style={{ fontSize: 13, color: 'var(--accent)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>{title}</h4>}
       <div style={{ position: 'relative', height: 300 }}>
         {children}
       </div>
@@ -194,28 +195,8 @@ function DataTable({ headers, rows, onRowClick }) {
   )
 }
 
-/* ── Chart config helpers ─────────────────────────────────────────────── */
-const chartColors = {
-  cyan: 'rgba(0, 210, 255, 1)',
-  cyanFill: 'rgba(0, 210, 255, 0.15)',
-  orange: 'rgba(255, 165, 0, 1)',
-  orangeFill: 'rgba(255, 165, 0, 0.15)',
-  green: 'rgba(75, 192, 192, 1)',
-  red: 'rgba(255, 99, 132, 1)',
-  purple: 'rgba(153, 102, 255, 1)',
-}
-
-const defaultChartOptions = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: {
-    legend: { labels: { color: 'var(--text)', font: { size: 11 } } },
-  },
-  scales: {
-    x: { ticks: { color: 'var(--text-muted)', font: { size: 10 } }, grid: { color: 'var(--border)' } },
-    y: { ticks: { color: 'var(--text-muted)', font: { size: 10 } }, grid: { color: 'var(--border)' } },
-  },
-}
+/* ── Chart colors alias (from shared config) ─────────────────────── */
+const chartColors = COLORS
 
 /* ── Section 3.3 ──────────────────────────────────────────────────────── */
 function Section33({ data }) {
@@ -249,14 +230,8 @@ function Section33({ data }) {
               (s.wall_pct * 100).toFixed(1) + '%',
             ])}
           />
-          <ChartCard title="X-Direction Force Distribution">
-            <Bar data={{
-              labels: (data.x_direction?.storeys || []).map(s => s.name),
-              datasets: [
-                { label: 'Column %', data: (data.x_direction?.storeys || []).map(s => s.column_pct * 100), backgroundColor: chartColors.cyan, borderRadius: 2 },
-                { label: 'Wall %', data: (data.x_direction?.storeys || []).map(s => s.wall_pct * 100), backgroundColor: chartColors.orange, borderRadius: 2 },
-              ],
-            }} options={{ ...defaultChartOptions, indexAxis: 'y', scales: { ...defaultChartOptions.scales, x: { ...defaultChartOptions.scales.x, max: 100 } }, plugins: { ...defaultChartOptions.plugins, title: { display: true, text: 'Column vs Wall Participation (%)', color: 'var(--text)' } } }} />
+          <ChartCard>
+            <Bar {...forceDistributionChart(data.x_direction?.storeys || [], 'x')} />
           </ChartCard>
         </div>
         <div>
@@ -272,14 +247,8 @@ function Section33({ data }) {
               (s.wall_pct * 100).toFixed(1) + '%',
             ])}
           />
-          <ChartCard title="Y-Direction Force Distribution">
-            <Bar data={{
-              labels: (data.y_direction?.storeys || []).map(s => s.name),
-              datasets: [
-                { label: 'Column %', data: (data.y_direction?.storeys || []).map(s => s.column_pct * 100), backgroundColor: chartColors.cyan, borderRadius: 2 },
-                { label: 'Wall %', data: (data.y_direction?.storeys || []).map(s => s.wall_pct * 100), backgroundColor: chartColors.orange, borderRadius: 2 },
-              ],
-            }} options={{ ...defaultChartOptions, indexAxis: 'y', scales: { ...defaultChartOptions.scales, x: { ...defaultChartOptions.scales.x, max: 100 } }, plugins: { ...defaultChartOptions.plugins, title: { display: true, text: 'Column vs Wall Participation (%)', color: 'var(--text)' } } }} />
+          <ChartCard>
+            <Bar {...forceDistributionChart(data.y_direction?.storeys || [], 'y')} />
           </ChartCard>
         </div>
       </div>
@@ -397,14 +366,8 @@ function Section42({ data }) {
         ])}
       />
 
-      <ChartCard title="Modal Mass Participation (Cumulative)">
-        <Line data={{
-          labels: top10.map(m => `Mode ${m.mode}`),
-          datasets: [
-            { label: 'ΣUX (%)', data: top10.map(m => m.sum_ux), borderColor: chartColors.cyan, backgroundColor: chartColors.cyanFill, fill: true, tension: 0.3 },
-            { label: 'ΣUY (%)', data: top10.map(m => m.sum_uy), borderColor: chartColors.orange, backgroundColor: chartColors.orangeFill, fill: true, tension: 0.3 },
-          ],
-        }} options={defaultChartOptions} />
+      <ChartCard>
+        <Line {...modalParticipationChart(top10)} />
       </ChartCard>
     </div>
   )
@@ -438,16 +401,8 @@ function Section43({ data }) {
         ])}
       />
 
-      <ChartCard title="Geometric Imperfection Forces (Hi) Along Height">
-        <Bar data={{
-          labels: (data.storeys || []).map(s => s.name),
-          datasets: [{
-            label: 'Hi (kN)',
-            data: (data.storeys || []).map(s => s.hi),
-            backgroundColor: chartColors.cyan,
-            borderRadius: 3,
-          }],
-        }} options={{ ...defaultChartOptions, indexAxis: 'y', plugins: { ...defaultChartOptions.plugins, title: { display: true, text: 'Transversal Imperfection Force per Storey', color: 'var(--text)' } } }} />
+      <ChartCard>
+        <Bar {...imperfectionForcesChart(data.storeys || [])} />
       </ChartCard>
     </div>
   )
@@ -588,14 +543,8 @@ function Section46({ data }) {
         </div>
       </div>
 
-      <ChartCard title="Overturning vs Resisting Moment">
-        <Bar data={{
-          labels: ['X-Direction', 'Y-Direction'],
-          datasets: [
-            { label: 'Overturning Moment (kN·m)', data: [data.x_direction?.total_ot_moment, data.y_direction?.total_ot_moment], backgroundColor: chartColors.red, borderRadius: 4 },
-            { label: 'Resisting Moment (kN·m)', data: [data.x_direction?.resisting_moment, data.y_direction?.resisting_moment], backgroundColor: chartColors.green, borderRadius: 4 },
-          ],
-        }} options={{ ...defaultChartOptions, plugins: { ...defaultChartOptions.plugins, title: { display: true, text: 'Safety Factor: X=' + data.x_direction?.safety_factor?.toFixed(2) + ', Y=' + data.y_direction?.safety_factor?.toFixed(2), color: 'var(--text)' } } }} />
+      <ChartCard>
+        <Bar {...overturningChart(data.x_direction || {}, data.y_direction || {})} />
       </ChartCard>
     </div>
   )

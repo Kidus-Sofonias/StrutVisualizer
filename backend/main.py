@@ -468,6 +468,72 @@ async def compare_projects(req: CompareRequest):
     return {"comparison": comparison}
 
 
+# ─── ETABS API Integration ──────────────────────────────────────────────────
+
+class EtabsConnectRequest(BaseModel):
+    model_path: str = ""
+    launch_etabs: bool = False
+
+
+@app.get("/api/etabs/status")
+async def etabs_status():
+    """Check if ETABS API is available on this machine."""
+    from importers.etabs_api import check_etabs_available
+    return check_etabs_available()
+
+
+@app.post("/api/etabs/connect")
+async def etabs_connect(req: EtabsConnectRequest):
+    """Connect to ETABS and extract engineering data."""
+    import traceback as tb
+    from importers.etabs_api import connect_to_etabs
+    from calculations.engine import calculate_all
+
+    try:
+        project, warnings = connect_to_etabs(
+            model_path=req.model_path,
+            launch_etabs=req.launch_etabs,
+        )
+    except Exception as e:
+        print(f"ETABS connect error: {tb.format_exc()}")
+        raise HTTPException(500, f"ETABS connection failed: {str(e)}")
+
+    if project is None:
+        raise HTTPException(500, f"ETABS connection failed: {warnings}")
+
+    # Calculate
+    try:
+        calculate_all(project)
+    except Exception as e:
+        print(f"CALC ERROR: {tb.format_exc()}")
+        raise HTTPException(500, f"Calculation failed: {str(e)}")
+
+    # Import extended data (if available from ETABS)
+    ext_data = {}
+    try:
+        from importers.extended_importer import import_extended_data
+        if project.database_file and os.path.exists(project.database_file):
+            ext_data = import_extended_data(project.database_file)
+    except Exception:
+        pass
+
+    # Store
+    projects_store[project.project_id] = {
+        "project": project,
+        "file_path": project.database_file,
+        "warnings": warnings,
+        "ext_data": ext_data,
+    }
+
+    return {
+        "status": "success",
+        "project_id": project.project_id,
+        "project_name": project.project_name,
+        "storeys_imported": len(project.storeys),
+        "warnings": warnings,
+    }
+
+
 @app.delete("/api/projects/{project_id}")
 async def delete_project(project_id: str):
     """Delete a project."""

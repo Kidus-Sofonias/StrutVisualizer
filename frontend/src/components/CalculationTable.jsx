@@ -3,6 +3,9 @@ import { useState } from 'react'
 import { BookOpen, Calculator, ChevronDown, ChevronRight } from 'lucide-react'
 import { Line, Bar } from 'react-chartjs-2'
 import { engineeringText } from '../data/engineeringText'
+import {
+  COLORS, stiffnessChart, eccentricityChart, torsionalRadiusChart, massChart, chartCardStyle,
+} from '../config/chartConfig'
 
 const columns = {
   '3.2.2': [
@@ -121,117 +124,50 @@ function EngineeringBlock({ moduleKey }) {
   )
 }
 
-/* ── Chart for 3.2 modules ──────────────────────────────────────────── */
-const chartColors = {
-  cyan: 'rgba(0, 210, 255, 1)',
-  cyanFill: 'rgba(0, 210, 255, 0.15)',
-  orange: 'rgba(255, 165, 0, 1)',
-  orangeFill: 'rgba(255, 165, 0, 0.15)',
-}
-
-const chartOpts = {
-  responsive: true,
-  maintainAspectRatio: false,
-  plugins: { legend: { labels: { color: 'var(--text)', font: { size: 11 } } } },
-  scales: {
-    x: { ticks: { color: 'var(--text-muted)', font: { size: 9 }, maxRotation: 45 }, grid: { color: 'var(--border)' } },
-    y: { ticks: { color: 'var(--text-muted)', font: { size: 10 } }, grid: { color: 'var(--border)' } },
-  },
-}
+/* ── Chart for 3.2 modules (uses shared config) ──────────────────── */
 
 function ModuleChart({ moduleKey, storeys }) {
-  const names = storeys.map(s => s.name)
-
   if (moduleKey === '3.2.2') {
+    const config = eccentricityChart(storeys)
     return (
-      <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: 16, marginBottom: 16, border: '1px solid var(--border)' }}>
-        <h4 style={{ fontSize: 12, color: 'var(--accent)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Structural Eccentricity Along Height</h4>
-        <div style={{ height: 280 }}>
-          <Line data={{
-            labels: names,
-            datasets: [
-              { label: 'eox (m)', data: storeys.map(s => s.eox), borderColor: chartColors.cyan, backgroundColor: chartColors.cyanFill, fill: false, tension: 0.3 },
-              { label: 'eoy (m)', data: storeys.map(s => s.eoy), borderColor: chartColors.orange, backgroundColor: chartColors.orangeFill, fill: false, tension: 0.3 },
-            ],
-          }} options={chartOpts} />
-        </div>
+      <div style={chartCardStyle}>
+        <div style={{ height: 280 }}><Line {...config} /></div>
       </div>
     )
   }
 
   if (moduleKey === '3.2.3') {
+    const config = torsionalRadiusChart(storeys)
     return (
-      <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: 16, marginBottom: 16, border: '1px solid var(--border)' }}>
-        <h4 style={{ fontSize: 12, color: 'var(--accent)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Torsional Radii Along Height</h4>
-        <div style={{ height: 280 }}>
-          <Line data={{
-            labels: names,
-            datasets: [
-              { label: 'rx (m)', data: storeys.map(s => s.rx), borderColor: chartColors.cyan, fill: false, tension: 0.3 },
-              { label: 'ry (m)', data: storeys.map(s => s.ry), borderColor: chartColors.orange, fill: false, tension: 0.3 },
-            ],
-          }} options={chartOpts} />
-        </div>
+      <div style={chartCardStyle}>
+        <div style={{ height: 280 }}><Line {...config} /></div>
       </div>
     )
   }
 
   if (moduleKey === '3.2.6') {
+    const config = stiffnessChart(storeys, 'x')
     return (
-      <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: 16, marginBottom: 16, border: '1px solid var(--border)' }}>
-        <h4 style={{ fontSize: 12, color: 'var(--accent)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Stiffness Distribution — X Direction</h4>
-        <div style={{ height: 280 }}>
-          <Bar data={{
-            labels: names,
-            datasets: [{
-              label: 'Kx (kN/m)',
-              data: storeys.map(s => s.kx),
-              backgroundColor: storeys.map(s => s.module_3_2_6_status === 'NOT OK' ? 'rgba(255, 99, 132, 0.7)' : chartColors.cyan),
-              borderRadius: 3,
-            }],
-          }} options={{ ...chartOpts, indexAxis: 'y' }} />
-        </div>
+      <div style={chartCardStyle}>
+        <div style={{ height: 280 }}><Bar {...config} /></div>
       </div>
     )
   }
 
   if (moduleKey === '3.2.7') {
+    const config = stiffnessChart(storeys, 'y')
     return (
-      <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: 16, marginBottom: 16, border: '1px solid var(--border)' }}>
-        <h4 style={{ fontSize: 12, color: 'var(--accent)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Stiffness Distribution — Y Direction</h4>
-        <div style={{ height: 280 }}>
-          <Bar data={{
-            labels: names,
-            datasets: [{
-              label: 'Ky (kN/m)',
-              data: storeys.map(s => s.ky),
-              backgroundColor: storeys.map(s => s.module_3_2_7_status === 'NOT OK' ? 'rgba(255, 99, 132, 0.7)' : chartColors.orange),
-              borderRadius: 3,
-            }],
-          }} options={{ ...chartOpts, indexAxis: 'y' }} />
-        </div>
+      <div style={chartCardStyle}>
+        <div style={{ height: 280 }}><Bar {...config} /></div>
       </div>
     )
   }
 
   if (moduleKey === '3.2.8') {
+    const config = massChart(storeys)
     return (
-      <div style={{ background: 'var(--bg-secondary)', borderRadius: 8, padding: 16, marginBottom: 16, border: '1px solid var(--border)' }}>
-        <h4 style={{ fontSize: 12, color: 'var(--accent)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: 0.5 }}>Mass Distribution Along Height</h4>
-        <div style={{ height: 280 }}>
-          <Bar data={{
-            labels: names,
-            datasets: [{
-              label: 'Mass (×10³ kg)',
-              data: storeys.map(s => s.module_3_2_8_mass),
-              backgroundColor: storeys.map(s => {
-                if (s.module_3_2_8_status_upper === 'NOT OK' || s.module_3_2_8_status_lower === 'NOT OK') return 'rgba(255, 99, 132, 0.7)'
-                return 'rgba(75, 192, 192, 0.7)'
-              }),
-              borderRadius: 3,
-            }],
-          }} options={{ ...chartOpts, indexAxis: 'y' }} />
-        </div>
+      <div style={chartCardStyle}>
+        <div style={{ height: 280 }}><Bar {...config} /></div>
       </div>
     )
   }

@@ -61,4 +61,7 @@ echo  Application is running!
 echo  Backend:  http://localhost:8003
 echo  Frontend: http://localhost:5173
 echo.
+echo  ETABS Direct API: Available if ETABS is installed on this machine.
+echo  Import mode: Access Database (.mdb) or ETABS Direct API.
+echo.
 pause
