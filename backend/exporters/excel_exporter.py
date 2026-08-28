@@ -22,6 +22,7 @@ HEADER_FONT = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
 TITLE_FONT = Font(name="Calibri", size=14, bold=True, color="1F4E79")
 SUBTITLE_FONT = Font(name="Calibri", size=12, bold=True, color="2E75B6")
 NORMAL_FONT = Font(name="Calibri", size=11)
+BOLD_FONT = Font(name="Calibri", size=11, bold=True)
 THIN_BORDER = Border(
     left=Side(style="thin"), right=Side(style="thin"),
     top=Side(style="thin"), bottom=Side(style="thin"),

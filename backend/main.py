@@ -408,18 +408,23 @@ async def export_report(req: ExportRequest):
     ext_store = projects_store.get(req.project_id, {})
     sections = ext_store.get("sections", {})
     
-    if req.format == "excel":
-        filename = f"report_{project.project_name}_{timestamp}.xlsx"
-        output_path = EXPORTS_DIR / filename
-        from exporters.excel_exporter import export_to_excel
-        export_to_excel(project, str(output_path), sections=sections)
-    elif req.format == "pdf":
-        filename = f"report_{project.project_name}_{timestamp}.pdf"
-        output_path = EXPORTS_DIR / filename
-        from exporters.pdf_exporter import export_to_pdf
-        export_to_pdf(project, str(output_path), sections=sections)
-    else:
-        raise HTTPException(400, f"Unknown format: {req.format}")
+    try:
+        if req.format == "excel":
+            filename = f"report_{project.project_name}_{timestamp}.xlsx"
+            output_path = EXPORTS_DIR / filename
+            from exporters.excel_exporter import export_to_excel
+            export_to_excel(project, str(output_path), sections=sections)
+        elif req.format == "pdf":
+            filename = f"report_{project.project_name}_{timestamp}.pdf"
+            output_path = EXPORTS_DIR / filename
+            from exporters.pdf_exporter import export_to_pdf
+            export_to_pdf(project, str(output_path), sections=sections)
+        else:
+            raise HTTPException(400, f"Unknown format: {req.format}")
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(500, f"Export failed: {str(e)}")
     
     return FileResponse(
         path=str(output_path),
