@@ -163,7 +163,7 @@ def export_to_pdf(project: Project, output_path: str, sections=None) -> str:
     # 3.2.8
     story.append(Paragraph("3.2.8 Mass Distribution", h3))
     story.append(Paragraph("Mi < 2·Mi+1,  Mi < 2·Mi−1", mono))
-    data = [["Story", "Mass (×10³ kg)", "Mi < 2·Mi+1", "Mi < 2·Mi−1"]]
+    data = [["Story", "Mass (x10^3 kg)", "Mi < 2*Mi+1", "Mi < 2*Mi-1"]]
     for s in storeys:
         c = s.calculations
         data.append([s.normalized_name, f"{c.module_3_2_8_mass:.1f}" if c.module_3_2_8_mass else "-",
@@ -213,8 +213,10 @@ def export_to_pdf(project: Project, output_path: str, sections=None) -> str:
             story.append(PageBreak())
             story.append(Paragraph("4.1 Base Shear Calculation", h2))
             story.append(Paragraph(f"ag = {s41.get('ag', '')}g, Ground Type = {s41.get('ground_type', '')}, q = {s41.get('q', '')}", normal))
-            story.append(Paragraph(f"Sd(T)x = {s41.get('Sd_x_g', 0):.4f}g → Fb = {s41.get('Fb_x', 0):.0f} kN", normal))
-            story.append(Paragraph(f"Sd(T)y = {s41.get('Sd_y_g', 0):.4f}g → Fb = {s41.get('Fb_y', 0):.0f} kN", normal))
+            sd_x = s41.get('Sd_x', 0)
+            sd_y = s41.get('Sd_y', 0)
+            story.append(Paragraph(f"Sd(T)x = {sd_x:.4f}g = {s41.get('Sd_x_pct', 0):.1f}% x ag, Fb = {s41.get('Fb_x', 0):.0f} kN", normal))
+            story.append(Paragraph(f"Sd(T)y = {sd_y:.4f}g = {s41.get('Sd_y_pct', 0):.1f}% x ag, Fb = {s41.get('Fb_y', 0):.0f} kN", normal))
             story.append(Paragraph(f"Total Weight = {s41.get('total_weight_kN', 0):.0f} kN", normal))
 
         # 4.2
@@ -222,7 +224,7 @@ def export_to_pdf(project: Project, output_path: str, sections=None) -> str:
             s42 = sections["4.2"]
             story.append(PageBreak())
             story.append(Paragraph("4.2 Modal Participation", h2))
-            story.append(Paragraph(f"T₁x = {s42.get('T1x', '')}s ({s42.get('mass_x', '')}%), T₁y = {s42.get('T1y', '')}s ({s42.get('mass_y', '')}%)", normal))
+            story.append(Paragraph(f"T₁x = {s42.get('T1x', '')}s ({    s42.get('mass_x', '')}%), T1y = {s42.get('T1y', '')}s ({s42.get('mass_y', '')}%)", normal))
             story.append(Spacer(1, 10))
             data = [["Mode", "Period (s)", "UX (%)", "UY (%)", "Sum UX", "Sum UY"]]
             for m in s42.get("modes", [])[:10]:
@@ -235,7 +237,7 @@ def export_to_pdf(project: Project, output_path: str, sections=None) -> str:
             s43 = sections["4.3"]
             story.append(PageBreak())
             story.append(Paragraph("4.3 Geometric Imperfections", h2))
-            story.append(Paragraph(f"θi = {s43.get('theta0', '')} × {s43.get('alpha_h', '')} × {s43.get('alpha_m', '')} = {s43.get('theta_i', '')}", mono))
+            story.append(Paragraph(f"theta_i = {s43.get('theta0', '')} * {s43.get('alpha_h', '')} * {s43.get('alpha_m', '')} = {s43.get('theta_i', '')}", mono))
             story.append(Spacer(1, 10))
             data = [["Story", "Ptot (kN)", "Height (m)", "θi", "Hi (kN)"]]
             for s in s43.get("storeys", []):

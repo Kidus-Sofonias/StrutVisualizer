@@ -203,7 +203,7 @@ def _create_3_2_combined_sheet(wb, project):
     r += 1
     ws.cell(row=r, column=1, value="Mi < 2·Mi+1,  Mi < 2·Mi−1").font = SUBTITLE_FONT
     r += 1
-    r = _write_header_row(ws, r, ["Story", "Mass (×10³ kg)", "Mi < 2·Mi+1", "Mi < 2·Mi−1"])
+    r = _write_header_row(ws, r, ["Story", "Mass (x10^3 kg)", "Mi < 2*Mi+1", "Mi < 2*Mi-1"])
     for s in storeys:
         c = s.calculations
         _write_data_row(ws, r, [s.normalized_name, c.module_3_2_8_mass, c.module_3_2_8_status_upper, c.module_3_2_8_status_lower], status_col=3, status_val=c.module_3_2_8_status_upper)
@@ -288,8 +288,8 @@ def _create_4_1_sheet(wb, data):
         ("q", data.get("q", "")),
         ("β (Lower Bound)", data.get("beta", "")),
         ("Total Weight", f'{data.get("total_weight_kN", 0):.0f} kN'),
-        ("Sd(T)x", f'{data.get("Sd_x_g", 0):.4f}g'),
-        ("Sd(T)y", f'{data.get("Sd_y_g", 0):.4f}g'),
+        ("Sd(T)x", f'{data.get("Sd_x", 0):.4f}g = {data.get("Sd_x_pct", 0):.1f}% x ag'),
+        ("Sd(T)y", f'{data.get("Sd_y", 0):.4f}g = {data.get("Sd_y_pct", 0):.1f}% x ag'),
         ("Fb (X)", f'{data.get("Fb_x", 0):.0f} kN'),
         ("Fb (Y)", f'{data.get("Fb_y", 0):.0f} kN'),
     ]
@@ -315,7 +315,7 @@ def _create_4_3_sheet(wb, data):
     ws = wb.create_sheet("4.3 Imperfections")
     ws["A1"] = "4.3 Geometric Imperfections"
     ws["A1"].font = TITLE_FONT
-    ws["A3"] = f'θi = {data.get("theta0", "")} × {data.get("alpha_h", "")} × {data.get("alpha_m", "")} = {data.get("theta_i", "")}'
+    ws["A3"] = f'theta_i = {data.get("theta0", "")} * {data.get("alpha_h", "")} * {data.get("alpha_m", "")} = {data.get("theta_i", "")}'
     r = 5
     r = _write_header_row(ws, r, ["Story", "Ptot (kN)", "Height (m)", "θi", "Hi (kN)"])
     for s in data.get("storeys", []):

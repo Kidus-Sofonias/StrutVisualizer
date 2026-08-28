@@ -204,11 +204,11 @@ function Section41({ data }) {
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
         <div className="formula-box">
-          <div className="formula" style={{ color: 'var(--cyan)' }}>Sd(T)x = {data.Sd_x_g?.toFixed(4)}g</div>
+          <div className="formula" style={{ color: 'var(--cyan)' }}>Sd(T)x = {data.Sd_x?.toFixed(4)}g ({data.Sd_x_pct?.toFixed(1)}%×ag)</div>
           <div className="description">{data.description_x}</div>
         </div>
         <div className="formula-box">
-          <div className="formula" style={{ color: 'var(--cyan)' }}>Sd(T)y = {data.Sd_y_g?.toFixed(4)}g</div>
+          <div className="formula" style={{ color: 'var(--cyan)' }}>Sd(T)y = {data.Sd_y?.toFixed(4)}g ({data.Sd_y_pct?.toFixed(1)}%×ag)</div>
           <div className="description">{data.description_y}</div>
         </div>
       </div>

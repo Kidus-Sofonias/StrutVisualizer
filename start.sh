@@ -32,8 +32,8 @@ if [ ! -d "frontend/node_modules" ]; then
 fi
 
 # Start backend
-echo "[INFO] Starting backend server on http://localhost:8000"
-cd backend && python3 -m uvicorn main:app --reload --port 8001 &
+echo "[INFO] Starting backend server on http://localhost:8002"
+cd backend && python3 -m uvicorn main:app --reload --port 8002 &
 BACKEND_PID=$!
 cd ..
 
@@ -47,7 +47,7 @@ cd ..
 
 echo ""
 echo "  Application is running!"
-echo "  Backend:  http://localhost:8000"
+echo "  Backend:  http://localhost:8002"
 echo "  Frontend: http://localhost:5173"
 echo ""
 echo "  Press Ctrl+C to stop."

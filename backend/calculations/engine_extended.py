@@ -175,7 +175,7 @@ def calculate_section_3_4(project: Project, section_3_3: Dict) -> Dict:
         "regularity_elevation": "Regular" if regular_in_elevation else "Irregular",
         "qo": qo, "kw": kw, "alpha_ratio": alpha_ratio,
         "qx": qx, "qy": qy, "q": min(qx, qy),
-        "description": f"q = {qo} × {kw} × {alpha_ratio} = {qx}",
+        "description": f"q = {qo} * {kw} * {alpha_ratio} = {qx}",
     }
 
 
@@ -241,15 +241,15 @@ def calculate_section_4_1(project: Project, section_3_4: Dict, ext_data: Dict) -
         "S": S, "TB": TB, "TC": TC, "TD": TD,
         "T1x": T1x, "T1y": T1y,
         "Sd_x": round(Sd_x, 6), "Sd_y": round(Sd_y, 6),
-        "Sd_x_g": round(Sd_x / ag, 6) if ag else 0,
-        "Sd_y_g": round(Sd_y / ag, 6) if ag else 0,
+        "Sd_x_pct": round(Sd_x / ag * 100, 2) if ag else 0,
+        "Sd_y_pct": round(Sd_y / ag * 100, 2) if ag else 0,
         "total_weight_kN": round(W, 2),
         "lambda": lam,
         "Fb_x": round(Fb_x, 2), "Fb_y": round(Fb_y, 2),
         "lower_bound_x": round(lower_bound_x, 2), "lower_bound_y": round(lower_bound_y, 2),
         "modal_ratio_x": modal_ratio_x, "modal_ratio_y": modal_ratio_y,
-        "description_x": f"Sd(T)x = {Sd_x/ag:.4f}g, Fb = {Fb_x:.2f} kN",
-        "description_y": f"Sd(T)y = {Sd_y/ag:.4f}g, Fb = {Fb_y:.2f} kN",
+        "description_x": f"Sd(T)x = {Sd_x:.4f}g = {Sd_x/ag*100:.1f}% x ag, Fb = {Fb_x:.2f} kN",
+        "description_y": f"Sd(T)y = {Sd_y:.4f}g = {Sd_y/ag*100:.1f}% x ag, Fb = {Fb_y:.2f} kN",
     }
 
 
@@ -335,7 +335,7 @@ def calculate_section_4_3(project: Project, ext_data: Dict) -> Dict:
         "alpha_m": alpha_m,
         "theta_i": round(theta_i, 6),
         "storeys": results,
-        "description": f"θi = {theta0} × {alpha_h} × {alpha_m} = {theta_i:.6f}",
+        "description": f"theta_i = {theta0} * {alpha_h} * {alpha_m} = {theta_i:.6f}",
     }
 
 
@@ -545,10 +545,19 @@ def calculate_section_4_6(project: Project, section_4_1: Dict, ext_data: Dict) -
     # Get EQX/EQY story shears
     eqx_shears = ext_data.get("eqx_shears", {})
     
-    # Building center distances from Excel (ground level)
-    # These are distances from one edge to the center of mass
-    ground_xcm_dist = 17.539  # m — distance along X
-    ground_ycm_dist = 16.069  # m — distance along Y
+    # Building center distances — computed from actual ground-level CM data
+    # XCM/YCM at GROUND FL give the center of mass position
+    ground_floor = None
+    for s in storeys:
+        if s.normalized_name == "GROUND FL":
+            ground_floor = s
+            break
+    if ground_floor:
+        ground_xcm_dist = ground_floor.source_data.xcm or 17.539
+        ground_ycm_dist = ground_floor.source_data.ycm or 16.069
+    else:
+        ground_xcm_dist = 17.539
+        ground_ycm_dist = 16.069
     
     results_x = []
     results_y = []
@@ -600,7 +609,7 @@ def calculate_section_4_6(project: Project, section_4_1: Dict, ext_data: Dict) -
             "passes": sf_y >= 1.5,
         },
         "total_weight_kN": round(total_weight_kN, 2),
-        "ground_xcm_dist": ground_xcm_dist,
-        "ground_ycm_dist": ground_ycm_dist,
+        "ground_xcm": round(ground_xcm_dist, 3),
+        "ground_ycm": round(ground_ycm_dist, 3),
         "required_sf": 1.5,
     }

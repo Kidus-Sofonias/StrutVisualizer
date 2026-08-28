@@ -81,6 +81,28 @@ function App() {
     setLoading(false)
   }
 
+  const handleLoadLocal = async (filename) => {
+    setLoading(true)
+    try {
+      const res = await fetch(`${API}/api/load-local`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ filename }),
+      })
+      const data = await res.json()
+      if (data.status === 'success') {
+        showNotification(`Loaded ${data.storeys_imported} storeys from ${data.project_name}`)
+        await loadProjects()
+        await loadProject(data.project_id)
+      } else {
+        showNotification(data.message || 'Load failed', 'error')
+      }
+    } catch (e) {
+      showNotification('Load failed: ' + e.message, 'error')
+    }
+    setLoading(false)
+  }
+
   const handleExport = async (format) => {
     if (!activeProject) return
     try {
@@ -256,7 +278,7 @@ function App() {
 
           {activeView === 'upload' && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <ProjectUpload onUpload={handleUpload} loading={loading} />
+              <ProjectUpload onUpload={handleUpload} onLoadLocal={handleLoadLocal} loading={loading} />
             </motion.div>
           )}
 
