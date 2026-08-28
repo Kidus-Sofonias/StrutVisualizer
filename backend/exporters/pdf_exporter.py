@@ -67,6 +67,7 @@ def export_to_pdf(project: Project, output_path: str, sections: Dict = None) -> 
     # ── 3.2 Structural Regularity ──
     story.append(Paragraph("3.2 Structural Regularity", title_style))
     story.append(Spacer(1, 8))
+    _add_engineering_text_pdf(story, styles, "3.2")
 
     # 3.2.2 Table
     story.append(Paragraph("Table 3.2.2: Structural Eccentricity", sub_style))
@@ -168,11 +169,50 @@ def export_to_pdf(project: Project, output_path: str, sections: Dict = None) -> 
             }
             story.append(Paragraph(sec_titles.get(sec_id, sec_id), title_style))
             story.append(Spacer(1, 8))
+            _add_engineering_text_pdf(story, styles, sec_id)
             _add_section_to_pdf(story, styles, sec_data)
             story.append(PageBreak())
 
     doc.build(story)
     return output_path
+
+
+def _add_engineering_text_pdf(story, styles, section_key):
+    """Add engineering background text to PDF."""
+    try:
+        from exporters.engineering_text import ENGINEERING_TEXT
+    except ImportError:
+        return
+
+    et = ENGINEERING_TEXT.get(section_key)
+    if not et:
+        return
+
+    body_style = ParagraphStyle("Body", parent=styles["Normal"], fontSize=8, leading=11, spaceAfter=4)
+    formula_style = ParagraphStyle("Formula", parent=styles["Normal"], fontSize=8, fontName="Courier", leading=10,
+                                    textColor=colors.HexColor("#1F4E79"), spaceBefore=4, spaceAfter=4,
+                                    leftIndent=10)
+
+    if et.get("background"):
+        story.append(Paragraph("<b>Background:</b>", styles["Normal"]))
+        for para in et["background"].split("\n"):
+            if para.strip():
+                story.append(Paragraph(para.strip(), body_style))
+        story.append(Spacer(1, 4))
+
+    if et.get("formula"):
+        story.append(Paragraph("<b>Formula:</b>", styles["Normal"]))
+        for line in et["formula"].split("\n"):
+            if line.strip():
+                story.append(Paragraph(line.strip(), formula_style))
+        story.append(Spacer(1, 4))
+
+    if et.get("criteria"):
+        story.append(Paragraph("<b>Criteria:</b>", styles["Normal"]))
+        for para in et["criteria"].split("\n"):
+            if para.strip():
+                story.append(Paragraph(para.strip(), body_style))
+        story.append(Spacer(1, 6))
 
 
 def _add_section_to_pdf(story, styles, data):

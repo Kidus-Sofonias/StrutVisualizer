@@ -280,6 +280,57 @@ def _create_3_2_sheet(wb, project, storeys):
         ws.add_chart(chart, "F" + str(chart_row + 16))
 
 
+def _write_engineering_text(ws, row, section_key):
+    """Write engineering background text extracted from the Excel workbook."""
+    try:
+        from exporters.engineering_text import ENGINEERING_TEXT
+    except ImportError:
+        return row
+
+    et = ENGINEERING_TEXT.get(section_key)
+    if not et:
+        return row
+
+    # Background
+    if et.get('background'):
+        ws.cell(row=row, column=1, value="Background:").font = SUBTITLE_FONT
+        row += 1
+        for para in et['background'].split('\n'):
+            if para.strip():
+                c = ws.cell(row=row, column=1, value=para.strip())
+                c.font = NORMAL_FONT
+                c.alignment = Alignment(wrap_text=True)
+                ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=8)
+                row += 1
+        row += 1
+
+    # Formula
+    if et.get('formula'):
+        ws.cell(row=row, column=1, value="Formula:").font = SUBTITLE_FONT
+        row += 1
+        for line in et['formula'].split('\n'):
+            if line.strip():
+                c = ws.cell(row=row, column=1, value=line.strip())
+                c.font = Font(name='Consolas', size=10, color='1F4E79')
+                row += 1
+        row += 1
+
+    # Criteria
+    if et.get('criteria'):
+        ws.cell(row=row, column=1, value="Criteria:").font = SUBTITLE_FONT
+        row += 1
+        for para in et['criteria'].split('\n'):
+            if para.strip():
+                c = ws.cell(row=row, column=1, value=para.strip())
+                c.font = NORMAL_FONT
+                c.alignment = Alignment(wrap_text=True)
+                ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=8)
+                row += 1
+        row += 1
+
+    return row
+
+
 def _create_section_sheet(wb, title, data):
     """Create a sheet for sections 3.3-4.6."""
     ws = wb.create_sheet(title)
@@ -290,6 +341,10 @@ def _create_section_sheet(wb, title, data):
     if not data:
         ws.cell(row=r, column=1, value="No data available")
         return
+
+    # Extract section key (e.g., '3.3' from '3.3 Lateral Force Participation')
+    section_key = title.split(' ')[0] if title else ''
+    r = _write_engineering_text(ws, r, section_key)
 
     # Handle dict data (key-value pairs)
     if isinstance(data, dict):
