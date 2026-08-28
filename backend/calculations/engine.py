@@ -64,39 +64,44 @@ def calculate_all(project: Project) -> None:
         if calc.ry is not None and calc.ls is not None:
             calc.module_3_2_5_ry_status = "OK" if calc.ry >= calc.ls else "NOT OK"
 
-        # 3.2.6 — Storey Stiffness X (from EQX actual forces + inter-storey drift)
-        # Kx = |VX_EQX| / |delta_UX| where delta_UX = UX(this) - UX(storey below in elevation)
-        # Storeys list is sorted top-to-bottom, so storeys[i+1] is below storeys[i]
-        if i < len(storeys) - 1:
+        # 3.2.6 — Storey Stiffness X
+        # Reference app formula: Kx = |Shear_EQX| / |DriftX_EQX * Height|
+        # Falls back to displacement-difference method if drift data unavailable.
+        height_i = sd.height or 0
+        vx_i = sd.vx_eqx
+        if sd.drift_x_eqx is not None and height_i > 0:
+            # Primary method: DriftX * Height (matches reference app / Excel)
+            dr_xx = abs(sd.drift_x_eqx * height_i)
+            if vx_i is not None and dr_xx > 1e-10:
+                calc.kx = round(abs(vx_i / dr_xx), 2)
+        elif i < len(storeys) - 1:
+            # Fallback: displacement difference between adjacent storeys
             next_storey = storeys[i + 1]
-            vx_i = sd.vx_eqx
             ux_i = sd.ux_eqx
             ux_next = next_storey.source_data.ux_eqx
-
             if all(v is not None for v in [vx_i, ux_i, ux_next]):
                 delta_ux = ux_i - ux_next
                 if abs(delta_ux) > 1e-10:
                     calc.kx = round(abs(vx_i / delta_ux), 2)
-        else:
-            # Bottom-most storey
-            if sd.vx_eqx is not None and sd.ux_eqx is not None and abs(sd.ux_eqx) > 1e-10:
-                calc.kx = round(abs(sd.vx_eqx / sd.ux_eqx), 2)
 
-        # 3.2.7 — Storey Stiffness Y (from EQY actual forces + inter-storey drift)
-        # Ky = |VY_EQY| / |delta_UY|
-        if i < len(storeys) - 1:
+        # 3.2.7 — Storey Stiffness Y
+        # Reference app formula: Ky = |Shear_EQY| / |DriftY_next * Height|
+        # Falls back to displacement-difference method if drift data unavailable.
+        vy_i = sd.vy_eqy
+        if sd.drift_y_eqy is not None and height_i > 0:
+            # Primary method: DriftY_next * Height (matches reference app / Excel)
+            dr_yy = abs(sd.drift_y_eqy * height_i)
+            if vy_i is not None and dr_yy > 1e-10:
+                calc.ky = round(abs(vy_i / dr_yy), 2)
+        elif i < len(storeys) - 1:
+            # Fallback: displacement difference between adjacent storeys
             next_storey = storeys[i + 1]
-            vy_i = sd.vy_eqy
             uy_i = sd.uy_eqy
             uy_next = next_storey.source_data.uy_eqy
-
             if all(v is not None for v in [vy_i, uy_i, uy_next]):
                 delta_uy = uy_i - uy_next
                 if abs(delta_uy) > 1e-10:
                     calc.ky = round(abs(vy_i / delta_uy), 2)
-        else:
-            if sd.vy_eqy is not None and sd.uy_eqy is not None and abs(sd.uy_eqy) > 1e-10:
-                calc.ky = round(abs(sd.vy_eqy / sd.uy_eqy), 2)
 
         # 3.2.8 — Mass Distribution (only for main storeys)
         calc.module_3_2_8_mass = sd.mass

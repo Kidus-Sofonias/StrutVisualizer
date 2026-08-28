@@ -50,6 +50,9 @@ class StoreySourceData:
     uy_eqx: Optional[float] = None
     ux_eqy: Optional[float] = None
     uy_eqy: Optional[float] = None
+    # Diaphragm Drifts (from Diaphragm Drifts table)
+    drift_x_eqx: Optional[float] = None  # DriftX for EQX load case
+    drift_y_eqy: Optional[float] = None  # DriftY for EQY load case (next-row)
     import_timestamp: Optional[datetime] = None
 
 

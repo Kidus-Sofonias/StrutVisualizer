@@ -50,6 +50,7 @@ def import_access_database(file_path: str) -> Tuple[Project, List[str]]:
     disp_data = raw_data["disp_data"]
     mass_data = raw_data["mass_data"]
     area_assign = raw_data.get("area_assign", {})
+    drift_data = raw_data.get("drift_data", {})
 
     # Build storeys from all available data
     # Use CMR data as primary source (most complete), then add from others
@@ -123,6 +124,12 @@ def import_access_database(file_path: str) -> Tuple[Project, List[str]]:
                 if sd.mass is None:
                     sd.mass = md.get("MassX")
                 sd.mmi = md.get("MMI")
+
+            # Diaphragm Drifts (for stiffness calculation)
+            if orig in drift_data.get("drift_x", {}):
+                sd.drift_x_eqx = drift_data["drift_x"][orig]
+            if orig in drift_data.get("drift_y", {}):
+                sd.drift_y_eqy = drift_data["drift_y"][orig]
 
         # Skip ghost storeys (no elevation data and no mass data)
         if sd.elevation is None and sd.mass is None and sd.xcm is None:
@@ -207,6 +214,7 @@ def _parse_all_tables(parser, file_path: str, warnings: List[str]) -> dict:
         "disp_data": _import_displacements(parser, warnings),
         "mass_data": _import_diaphragm_mass(parser, warnings),
         "area_assign": _import_area_assign(parser, warnings),
+        "drift_data": _import_diaphragm_drifts(parser, warnings),
     }
 
 
@@ -448,6 +456,70 @@ def _compute_ls_from_slabs(slabs_data: dict, xcm: float, ycm: float):
     if total_area > 0:
         return round(math.sqrt(total_ip / total_area), 3)
     return None
+
+
+def _import_diaphragm_drifts(parser, warnings: List[str]) -> Dict:
+    """Import Diaphragm Drifts table for stiffness calculation.
+    
+    Per the reference app / Excel formula:
+      3.2.6: Kx = |Shear_EQX_VX| / |DriftX_EQX * Height|
+      3.2.7: Ky = |Shear_EQY_VY| / |DriftY_next_row * Height|
+    
+    The Diaphragm Drifts table has per-storey, per-load-case drift values.
+    For X direction: take the DriftX value for EQX load case.
+    For Y direction: take the DriftY from the NEXT row after EQY match
+    (matching the Excel's +1 row behavior).
+    """
+    data = {"drift_x": {}, "drift_y": {}, "all_rows": []}
+    try:
+        # Try both common table names
+        table = parser.parse_table("Diaphragm Drifts")
+        if not table:
+            table = parser.parse_table("Diaphram Drift")
+        if not table:
+            # Try the Excel-style table name
+            table = parser.parse_table("Diaphragm Drift")
+        if not table:
+            warnings.append("Diaphragm Drifts table not found")
+            return data
+
+        stories = table.get("Story", [])
+        loads = table.get("Load", [])
+        driftx = table.get("DriftX", [])
+        drifty = table.get("DriftY", [])
+
+        # Build ordered list of (story, load, driftx, drifty)
+        rows = []
+        for i in range(len(stories)):
+            s = stories[i] if i < len(stories) else None
+            lc = loads[i] if i < len(loads) else None
+            dx = driftx[i] if i < len(driftx) else None
+            dy = drifty[i] if i < len(drifty) else None
+            if s and lc:
+                rows.append((str(s).strip(), str(lc).strip().upper(), dx, dy))
+
+        data["all_rows"] = rows
+
+        # First-match behavior for drift_x (EQX): take first DriftX per story
+        for s, lc, dx, dy in rows:
+            if lc == "EQX" and s not in data["drift_x"]:
+                data["drift_x"][s] = dx
+
+        # For drift_y (EQY): use the NEXT row after first EQY match per story
+        # This matches the Excel's +1 row behavior in process_327
+        first_eqy_idx = {}
+        for idx, (s, lc, dx, dy) in enumerate(rows):
+            if lc == "EQY" and s not in first_eqy_idx:
+                first_eqy_idx[s] = idx
+        for s, idx in first_eqy_idx.items():
+            next_idx = idx + 1
+            if next_idx < len(rows):
+                data["drift_y"][s] = rows[next_idx][3]  # DriftY from next row
+
+    except Exception as e:
+        warnings.append(f"Error reading Diaphragm Drifts: {e}")
+
+    return data
 
 
 # ─── Name normalization ─────────────────────────────────────────────────────
