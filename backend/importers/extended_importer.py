@@ -341,6 +341,13 @@ def _parse_eqx_shears(parser) -> Dict:
 
 
 def _cache_key(file_path: str) -> str:
+    """Generate cache key from file content hash + modification time."""
     mtime = os.path.getmtime(file_path)
     size = os.path.getsize(file_path)
-    return hashlib.md5(f"{file_path}_{mtime}_{size}".encode()).hexdigest()
+    try:
+        with open(file_path, 'rb') as f:
+            content_head = f.read(65536)
+        content_hash = hashlib.md5(content_head).hexdigest()
+    except Exception:
+        content_hash = 'nocontent'
+    return hashlib.md5(f"{content_hash}_{mtime}_{size}".encode()).hexdigest()

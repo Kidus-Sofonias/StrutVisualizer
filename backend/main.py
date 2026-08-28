@@ -244,7 +244,13 @@ async def upload_database(file: UploadFile = File(...)):
 
 @app.get("/api/projects")
 async def list_projects():
-    """List all loaded projects."""
+    """List all loaded projects, most recent first."""
+    # Sort by project_id (contains timestamp) — most recent first
+    sorted_projects = sorted(
+        projects_store.items(),
+        key=lambda item: item[0],
+        reverse=True,
+    )
     return {
         "projects": [
             {
@@ -252,8 +258,9 @@ async def list_projects():
                 "name": data["project"].project_name,
                 "storeys": len(data["project"].storeys),
                 "client": data["project"].client,
+                "created": pid.replace("proj_", ""),  # Extract timestamp
             }
-            for pid, data in projects_store.items()
+            for pid, data in sorted_projects
         ]
     }
 

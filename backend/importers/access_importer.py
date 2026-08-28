@@ -170,10 +170,21 @@ def import_access_database(file_path: str) -> Tuple[Project, List[str]]:
 # ─── Cache helpers ───────────────────────────────────────────────────────────
 
 def _cache_key(file_path: str) -> str:
-    """Generate cache key from file path and modification time."""
+    """Generate cache key from file content hash + modification time.
+    
+    Uses first 64KB of file content + mtime + size to avoid collisions
+    when files with the same name but different content are uploaded.
+    """
     mtime = os.path.getmtime(file_path)
     size = os.path.getsize(file_path)
-    raw = f"{file_path}_{mtime}_{size}"
+    # Read first 64KB for content fingerprint (fast for large files)
+    try:
+        with open(file_path, 'rb') as f:
+            content_head = f.read(65536)
+        content_hash = hashlib.md5(content_head).hexdigest()
+    except Exception:
+        content_hash = 'nocontent'
+    raw = f"{content_hash}_{mtime}_{size}"
     return hashlib.md5(raw.encode()).hexdigest()
 
 
