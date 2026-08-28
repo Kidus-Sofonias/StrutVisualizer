@@ -45,20 +45,20 @@ if not exist "frontend\node_modules" (
 )
 
 REM Start backend
-echo [INFO] Starting backend server on http://localhost:8002
+echo [INFO] Starting backend server on http://localhost:8003
 echo [INFO] Starting frontend dev server on http://localhost:5173
 echo.
 echo Press Ctrl+C to stop.
 echo.
 
 REM Start both servers
-start "Backend" cmd /c "cd backend && python -m uvicorn main:app --reload --port 8002"
+start "Backend" cmd /c "cd backend && python -m uvicorn main:app --reload --port 8003"
 timeout /t 3 /nobreak >nul
 start "Frontend" cmd /c "cd frontend && npm run dev"
 
 echo.
 echo  Application is running!
-echo  Backend:  http://localhost:8002
+echo  Backend:  http://localhost:8003
 echo  Frontend: http://localhost:5173
 echo.
 pause
