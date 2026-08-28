@@ -156,15 +156,12 @@ def _is_main_storey(name: str) -> bool:
 
 def _is_stiffness_storey(name: str) -> bool:
     """Check if storey participates in stiffness comparison.
-    Excel scope: ROOF FL through 1ST FL (no UP ROOF, no GROUND, no BASE).
-    10TH FL IS included (it sits between ROOF and 9TH).
+    Reference app scope: GROUND FL through ROOF FL (excludes BASE and UP ROOF).
     """
     upper = name.upper()
     if "BASE" in upper:
         return False
     if "UP ROOF" in upper:
-        return False
-    if "GROUND" in upper:
         return False
     return True
 
