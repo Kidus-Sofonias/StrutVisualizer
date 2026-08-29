@@ -15,7 +15,8 @@ The assessment evaluates both plan regularity and elevation regularity through a
 Regular buildings are permitted higher behavior factors (q), while irregular buildings may require reduction of the q-factor or additional analysis provisions. The results of this section directly affect Sections 3.3 (Building System Classification), 3.4 (Behavioral Factor), and all subsequent seismic calculations.`,
     subsections: {
       '3.2.1': {
-        title: 'Regularity in Plan',
+        title: 'Regularity in Plan (Slenderness)',
+        formula: 'λ = Lmax / Lmin < 4',
         criteria: `For the building to be categorized as being regular in plan, it shall satisfy all the conditions listed below:
 
 1. With respect to the lateral stiffness and mass distribution, the building structure shall be approximately symmetrical in plan with respect to the two orthogonal directions. The building satisfies condition 1 requirement due to a lack of any L, C, H, I, and X shape. It is almost symmetrical in both orthogonal directions.

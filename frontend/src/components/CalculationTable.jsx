@@ -8,8 +8,15 @@ import {
 } from '../config/chartConfig'
 
 const columns = {
+  '3.2.1': [
+    { key: 'name', label: 'Story' },
+    { key: 'lmax', label: 'Lmax (m)', fmt: v => v?.toFixed(1) },
+    { key: 'lmin', label: 'Lmin (m)', fmt: v => v?.toFixed(1) },
+    { key: 'module_3_2_1_lambda', label: '\u03BB = Lmax/Lmin', fmt: v => v?.toFixed(4), highlight: true },
+    { key: 'module_3_2_1_status', label: 'Status (\u03BB < 4)', isStatus: true },
+  ],
   '3.2.2': [
-    { key: 'name', label: 'Story', fmt: v => v },
+    { key: 'name', label: 'Story' },
     { key: 'xcm', label: 'Xcm (m)', fmt: v => v?.toFixed(3) },
     { key: 'ycm', label: 'Ycm (m)', fmt: v => v?.toFixed(3) },
     { key: 'xcr', label: 'Xcr (m)', fmt: v => v?.toFixed(3) },
@@ -19,12 +26,12 @@ const columns = {
   ],
   '3.2.3': [
     { key: 'name', label: 'Story' },
-    { key: 'ux_ul1', label: 'UX(UL1)', fmt: v => v?.toFixed(4) },
-    { key: 'uy_ul2', label: 'UY(UL2)', fmt: v => v?.toFixed(4) },
-    { key: 'rz_ul3', label: 'RZ(UL3)', fmt: v => v?.toFixed(5) },
-    { key: 'kfx', label: 'KFX', fmt: v => v?.toFixed(6) },
-    { key: 'kfy', label: 'KFY', fmt: v => v?.toFixed(6) },
-    { key: 'kmt', label: 'KMT', fmt: v => v?.toFixed(4) },
+    { key: 'ux_ul1', label: 'UX(UL1) (m)', fmt: v => v?.toFixed(4) },
+    { key: 'uy_ul2', label: 'UY(UL2) (m)', fmt: v => v?.toFixed(4) },
+    { key: 'rz_ul3', label: 'RZ(UL3) (rad)', fmt: v => v?.toFixed(5) },
+    { key: 'kfx', label: 'KFX (kN/m)', fmt: v => v?.toFixed(6) },
+    { key: 'kfy', label: 'KFY (kN/m)', fmt: v => v?.toFixed(6) },
+    { key: 'kmt', label: 'KMT (kN/m)', fmt: v => v?.toFixed(4) },
     { key: 'rx', label: 'rx (m)', fmt: v => v?.toFixed(3), highlight: true },
     { key: 'ry', label: 'ry (m)', fmt: v => v?.toFixed(3), highlight: true },
   ],
@@ -32,19 +39,20 @@ const columns = {
     { key: 'name', label: 'Story' },
     { key: 'eox', label: 'eox (m)', fmt: v => v?.toFixed(3) },
     { key: 'rx', label: 'rx (m)', fmt: v => v?.toFixed(3) },
-    { key: 'module_3_2_4_limit_x', label: '0.3·rx', fmt: v => v?.toFixed(3) },
+    { key: 'module_3_2_4_limit_x', label: '0.3\u00B7rx', fmt: v => v?.toFixed(3) },
     { key: 'module_3_2_4_eox_status', label: 'Status X', isStatus: true },
     { key: 'eoy', label: 'eoy (m)', fmt: v => v?.toFixed(3) },
     { key: 'ry', label: 'ry (m)', fmt: v => v?.toFixed(3) },
-    { key: 'module_3_2_4_limit_y', label: '0.3·ry', fmt: v => v?.toFixed(3) },
+    { key: 'module_3_2_4_limit_y', label: '0.3\u00B7ry', fmt: v => v?.toFixed(3) },
     { key: 'module_3_2_4_eoy_status', label: 'Status Y', isStatus: true },
   ],
   '3.2.5': [
     { key: 'name', label: 'Story' },
     { key: 'rx', label: 'rx (m)', fmt: v => v?.toFixed(3) },
-    { key: 'ls', label: 'ls (m)', fmt: v => v?.toFixed(3) },
+    { key: 'ls', label: 'ls (m)', fmt: v => v?.toFixed(3), highlight: true },
     { key: 'module_3_2_5_rx_status', label: 'Status X', isStatus: true },
     { key: 'ry', label: 'ry (m)', fmt: v => v?.toFixed(3) },
+    { key: 'ls', label: 'ls (m)', fmt: v => v?.toFixed(3), highlight: true, id: 'ls_y' },
     { key: 'module_3_2_5_ry_status', label: 'Status Y', isStatus: true },
   ],
   '3.2.6': [
@@ -66,6 +74,7 @@ const columns = {
 }
 
 const tableCaptions = {
+  '3.2.1': 'Table 3.2.1: Slenderness of the Building',
   '3.2.2': 'Table 3.2.2: Structural Eccentricity of the Building',
   '3.2.3': 'Table 3.2.3: Torsional Radius of the Building',
   '3.2.4': 'Table 3.2.4: Structural Eccentricity and Radius of Gyration Comparison for the Building',
@@ -240,7 +249,7 @@ function ModuleChart({ moduleKey, storeys }) {
   return null
 }
 
-/* ── Displacement Comparison Charts (shown after table 3.2.8) ────────── */
+/* ── Displacement Comparison Charts ──────────────────────────────────── */
 function DisplacementCharts({ storeys }) {
   const [showX, setShowX] = useState(true)
   const chartHeight = 350
@@ -313,7 +322,7 @@ export default function CalculationTable({ storeys, module: activeModule, onSele
         <div style={{ overflowX: 'auto' }}>
           <table className="excel-table">
             <thead>
-              <tr>{cols.map(col => <th key={col.key}>{col.label}</th>)}</tr>
+              <tr>{cols.map((col, i) => <th key={col.id || col.key || i}>{col.label}</th>)}</tr>
             </thead>
             <tbody>
               {storeys.map((storey) => {
@@ -321,15 +330,21 @@ export default function CalculationTable({ storeys, module: activeModule, onSele
                 return (
                   <tr key={storey.id} className={isSelected ? 'selected' : ''}
                     onClick={() => onSelectStorey(storey)} style={{ cursor: 'pointer' }}>
-                    {cols.map(col => {
-                      const val = getNestedValue(storey, col.key)
+                    {cols.map((col, ci) => {
+                      // Special handling for duplicate keys (like ls in 3.2.5)
+                      let val
+                      if (col.id === 'ls_y') {
+                        val = storey.ls  // same ls used for both X and Y
+                      } else {
+                        val = getNestedValue(storey, col.key)
+                      }
                       const display = col.fmt ? col.fmt(val) : val
                       if (col.isStatus) {
                         const s = val || '—'
                         const cls = s === 'OK' ? 'pass' : s === 'NOT OK' ? 'fail' : 'na'
-                        return <td key={col.key} className={`status-cell ${cls}`}>{display}</td>
+                        return <td key={col.id || col.key || ci} className={`status-cell ${cls}`}>{display}</td>
                       }
-                      return <td key={col.key} style={col.highlight ? { color: 'var(--accent)', fontWeight: 600 } : {}}>{display ?? '—'}</td>
+                      return <td key={col.id || col.key || ci} style={col.highlight ? { color: 'var(--accent)', fontWeight: 600 } : {}}>{display ?? '—'}</td>
                     })}
                   </tr>
                 )

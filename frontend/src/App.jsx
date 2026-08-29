@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Building2, Upload, BarChart3, FileText, GitCompare, ChevronRight, AlertTriangle, CheckCircle2, XCircle, Home, Sun, Moon, Layers, Settings } from 'lucide-react'
+import { Upload, BarChart3, FileText, GitCompare, CheckCircle2, XCircle, Home, Sun, Moon, Layers, Settings } from 'lucide-react'
 import BuildingVisualization from './components/BuildingVisualization'
 import StoreyDetail from './components/StoreyDetail'
 import CalculationTable from './components/CalculationTable'
@@ -47,7 +47,6 @@ function App() {
     }
   })
 
-  // Apply theme
   useEffect(() => {
     if (settings.theme === 'dark') {
       document.documentElement.classList.add('dark-theme')
@@ -56,7 +55,6 @@ function App() {
     }
   }, [settings.theme])
 
-  // Apply font size
   useEffect(() => {
     const sizes = { small: '13px', medium: '14px', large: '16px' }
     document.documentElement.style.fontSize = sizes[settings.fontSize] || '14px'
@@ -91,7 +89,7 @@ function App() {
       setSelectedStorey(data.storeys[0] || null)
       setActiveView('analysis')
       setActiveSection('3.2')
-    } catch (e) {
+    } catch {
       showNotification('Failed to load project', 'error')
     }
     setLoading(false)
@@ -166,21 +164,6 @@ function App() {
     setLoading(false)
   }
 
-  const deleteProject = async (id) => {
-    try {
-      await fetch(`${API}/api/projects/${id}`, { method: 'DELETE' })
-      if (activeProject?.project_id === id) {
-        setActiveProject(null)
-        setSelectedStorey(null)
-        setActiveView('dashboard')
-      }
-      await loadProjects()
-      showNotification('Project deleted')
-    } catch (e) {
-      showNotification('Delete failed', 'error')
-    }
-  }
-
   useEffect(() => { loadProjects() }, [loadProjects])
 
   const sections = [
@@ -195,7 +178,16 @@ function App() {
     { id: '4.6', label: '4.6', name: 'Overturning' },
   ]
 
-  const modules_3_2 = ['3.2.2', '3.2.3', '3.2.4', '3.2.5', '3.2.6', '3.2.7', '3.2.8']
+  const modules_3_2 = ['3.2.1', '3.2.2', '3.2.3', '3.2.4', '3.2.5', '3.2.6', '3.2.7', '3.2.8']
+
+  const navItems = [
+    { id: 'dashboard', icon: Home, label: 'Dashboard' },
+    { id: 'upload', icon: Upload, label: 'Import' },
+    { id: 'analysis', icon: BarChart3, label: 'Analysis' },
+    { id: 'compare', icon: GitCompare, label: 'Compare' },
+    { id: 'export', icon: FileText, label: 'Export' },
+    { id: 'settings', icon: Settings, label: 'Settings' },
+  ]
 
   return (
     <div className="app">
@@ -204,9 +196,9 @@ function App() {
         {notification && (
           <motion.div
             className={`notification ${notification.type}`}
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
           >
             {notification.type === 'success' ? <CheckCircle2 size={16} /> : <XCircle size={16} />}
             {notification.msg}
@@ -214,129 +206,148 @@ function App() {
         )}
       </AnimatePresence>
 
-      {/* Sidebar */}
+      {/* ── Collapsed Icon Sidebar ── */}
       <div className="sidebar">
-        <div className="sidebar-header">
-          <Layers size={20} style={{ color: 'var(--accent)' }} />
-          <div>
-            <h1>StrutVisualizer</h1>
-            <p>Structural Analysis</p>
-          </div>
+        <div className="sidebar-logo" onClick={() => setActiveView('dashboard')}>
+          <Layers size={18} style={{ color: 'var(--accent)' }} />
         </div>
 
-        <div className="nav-section">
-          <div className="nav-label">Navigation</div>
-        </div>
-        {[
-          { id: 'dashboard', icon: Home, label: 'Dashboard' },
-          { id: 'upload', icon: Upload, label: 'Import Data' },
-          { id: 'analysis', icon: BarChart3, label: 'Analysis' },
-          { id: 'compare', icon: GitCompare, label: 'Compare' },
-          { id: 'export', icon: FileText, label: 'Export' },
-          { id: 'settings', icon: Settings, label: 'Settings' },
-        ].map(item => (
+        {navItems.map(item => (
           <button
             key={item.id}
             className={`nav-item ${activeView === item.id ? 'active' : ''}`}
             onClick={() => setActiveView(item.id)}
           >
-            <item.icon size={16} />
-            {item.label}
+            <item.icon size={18} />
+            <span className="nav-tooltip">{item.label}</span>
           </button>
         ))}
 
-        {/* Projects */}
-        <div className="nav-section">
-          <div className="nav-label">Projects ({projects.length})</div>
-        </div>
-        <div className="project-list">
-          {projects.map(p => (
-            <div
+        {/* Project dots */}
+        <div className="project-list-rail">
+          {projects.map((p, i) => (
+            <button
               key={p.id}
-              className={`project-item ${activeProject?.project_id === p.id ? 'active' : ''}`}
+              className={`project-dot ${activeProject?.project_id === p.id ? 'active' : ''}`}
               onClick={() => loadProject(p.id)}
+              title={p.name}
             >
-              <Building2 size={14} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {p.name}
-                </div>
-                {p.created && (
-                  <div className="time">{p.created.replace(/_/g, ' ').slice(0, 19)}</div>
-                )}
-              </div>
-              <span className="storeys">{p.storeys}S</span>
-            </div>
+              {i + 1}
+            </button>
           ))}
-          {projects.length === 0 && (
-            <p style={{ fontSize: 11, color: 'var(--text-muted)', padding: '8px 12px' }}>
-              No projects loaded
-            </p>
-          )}
         </div>
 
-        {/* Theme Toggle */}
-        <div style={{ padding: '12px 16px', marginTop: 'auto', borderTop: '1px solid var(--border)' }}>
+        <div className="sidebar-bottom">
           <button
             className="nav-item"
             onClick={() => updateSettings({ ...settings, theme: settings.theme === 'dark' ? 'light' : 'dark' })}
-            style={{ justifyContent: 'center' }}
+            title={settings.theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
           >
-            {settings.theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-            {settings.theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+            {settings.theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           </button>
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* ── Main Content ── */}
       <div className="main-content">
-        {/* Views */}
-        {activeView === 'dashboard' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="main-scroll">
-            <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-              <Layers size={64} strokeWidth={1} style={{ color: 'var(--accent)', marginBottom: 16 }} />
-              <h2 style={{ fontSize: 24, marginBottom: 8 }}>Structural Engineering Analysis</h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: 14, maxWidth: 500, margin: '0 auto' }}>
-                Import your ETABS model data via Access database (.mdb) or direct ETABS API connection.
-                Perform storey-by-storey structural regularity analysis per Eurocode 8.
-              </p>
-              <div style={{ marginTop: 32, display: 'flex', gap: 12, justifyContent: 'center' }}>
-                <button className="primary-btn" onClick={() => setActiveView('upload')} style={{ padding: '12px 24px' }}>
-                  <Upload size={18} /> Import Data
-                </button>
-                {projects.length > 0 && (
-                  <button className="secondary-btn" onClick={() => loadProject(projects[0].id)} style={{ padding: '12px 24px' }}>
-                    <BarChart3 size={18} /> View Latest
+        <div className="main-header">
+          <h2>
+            {activeView === 'analysis' && activeProject
+              ? `${activeProject.project_name}`
+              : activeView === 'dashboard' ? 'Dashboard'
+              : activeView === 'upload' ? 'Import Data'
+              : activeView === 'compare' ? 'Compare Projects'
+              : activeView === 'export' ? 'Export Report'
+              : activeView === 'settings' ? 'Settings'
+              : 'StrutVisualizer'
+            }
+          </h2>
+          <div className="header-actions">
+            {loading && <div className="spinner" />}
+            {activeProject && activeView === 'analysis' && (
+              <span style={{ fontSize: 11, color: 'var(--text-tertiary)', fontFamily: "'JetBrains Mono', monospace" }}>
+                {activeProject.storeys?.length || 0} storeys
+              </span>
+            )}
+          </div>
+        </div>
+
+        <AnimatePresence mode="wait">
+          {/* ── Dashboard ── */}
+          {activeView === 'dashboard' && (
+            <motion.div key="dashboard" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="main-scroll">
+              <div style={{ maxWidth: 600, margin: '0 auto', textAlign: 'center', paddingTop: 80 }}>
+                <div style={{
+                  width: 64, height: 64, borderRadius: 'var(--radius-xl)',
+                  background: 'var(--accent-subtle)', display: 'flex',
+                  alignItems: 'center', justifyContent: 'center',
+                  margin: '0 auto 20px', border: '1px solid var(--accent-muted)',
+                }}>
+                  <Layers size={28} style={{ color: 'var(--accent)' }} />
+                </div>
+                <h2 style={{ fontSize: 26, fontWeight: 700, marginBottom: 8, letterSpacing: '-0.02em' }}>
+                  Structural Analysis Platform
+                </h2>
+                <p style={{ color: 'var(--text-tertiary)', fontSize: 14, maxWidth: 440, margin: '0 auto 32px', lineHeight: 1.6 }}>
+                  Import ETABS model data and perform storey-by-storey
+                  structural regularity analysis per Eurocode 8.
+                </p>
+                <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+                  <button className="primary-btn" onClick={() => setActiveView('upload')} style={{ padding: '11px 24px', fontSize: 13 }}>
+                    <Upload size={16} /> Import Data
                   </button>
+                  {projects.length > 0 && (
+                    <button className="secondary-btn" onClick={() => loadProject(projects[0].id)} style={{ padding: '11px 24px', fontSize: 13 }}>
+                      <BarChart3 size={16} /> View Latest
+                    </button>
+                  )}
+                </div>
+                {projects.length > 0 && (
+                  <div style={{ marginTop: 44, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, textAlign: 'left' }}>
+                    <div className="data-card">
+                      <div className="label">Projects</div>
+                      <div className="value">{projects.length}</div>
+                    </div>
+                    <div className="data-card">
+                      <div className="label">Storeys</div>
+                      <div className="value">{projects.reduce((s, p) => s + (p.storeys || 0), 0)}</div>
+                    </div>
+                    <div className="data-card">
+                      <div className="label">Sections</div>
+                      <div className="value">9</div>
+                    </div>
+                  </div>
                 )}
               </div>
-            </div>
-          </motion.div>
-        )}
+            </motion.div>
+          )}
 
-        {activeView === 'upload' && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="main-scroll">
-            <ProjectUpload onUpload={handleUpload} onLoadLocal={handleLoadLocal} loading={loading} />
-          </motion.div>
-        )}
+          {/* ── Upload ── */}
+          {activeView === 'upload' && (
+            <motion.div key="upload" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="main-scroll">
+              <ProjectUpload onUpload={handleUpload} onLoadLocal={handleLoadLocal} loading={loading} />
+            </motion.div>
+          )}
 
-        {activeView === 'analysis' && activeProject && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="analysis-layout">
-            <div className="section-tabs">
-              {sections.map(s => (
-                <button
-                  key={s.id}
-                  className={`section-tab ${activeSection === s.id ? 'active' : ''}`}
-                  onClick={() => setActiveSection(s.id)}
-                >
-                  <span className="section-label">{s.label}</span>
-                  <span className="section-name">{s.name}</span>
-                </button>
-              ))}
-            </div>
+          {/* ── Analysis (Three-Column Layout) ── */}
+          {activeView === 'analysis' && activeProject && (
+            <motion.div key="analysis" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="analysis-layout">
+              {/* Section Tabs */}
+              <div className="section-tabs">
+                {sections.map(s => (
+                  <button
+                    key={s.id}
+                    className={`section-tab ${activeSection === s.id ? 'active' : ''}`}
+                    onClick={() => setActiveSection(s.id)}
+                  >
+                    <span className="section-label">{s.label}</span>
+                    <span className="section-name">{s.name}</span>
+                  </button>
+                ))}
+              </div>
 
-            {activeSection === '3.2' && (
-              <>
+              {/* Module Tabs */}
+              {activeSection === '3.2' && (
                 <div className="module-tabs">
                   {modules_3_2.map(m => (
                     <button
@@ -348,8 +359,17 @@ function App() {
                     </button>
                   ))}
                 </div>
-                <div className="analysis-content">
-                  <div className="building-panel">
+              )}
+
+              {/* Three-Column Content */}
+              {activeSection === '3.2' ? (
+                <div className="analysis-three-col">
+                  {/* Left: Storey List */}
+                  <div className="storey-panel">
+                    <div className="storey-panel-header">
+                      <h3>Building Storeys</h3>
+                      <div className="subtitle">{activeProject.storeys.length} levels</div>
+                    </div>
                     <BuildingVisualization
                       storeys={activeProject.storeys}
                       selectedStorey={selectedStorey}
@@ -357,64 +377,70 @@ function App() {
                       activeModule={activeModule}
                     />
                   </div>
+
+                  {/* Center: Tables + Charts */}
+                  <div className="center-panel">
+                    <CalculationTable
+                      storeys={activeProject.storeys}
+                      module={activeModule}
+                      onSelectStorey={setSelectedStorey}
+                      selectedStorey={selectedStorey}
+                    />
+                  </div>
+
+                  {/* Right: Floor Detail */}
                   <div className="detail-panel">
                     {selectedStorey && (
                       <StoreyDetail
                         storey={selectedStorey}
                         module={activeModule}
-                        projectName={activeProject.project_name}
                       />
                     )}
                   </div>
                 </div>
-                <CalculationTable
-                  storeys={activeProject.storeys}
-                  module={activeModule}
-                  onSelectStorey={setSelectedStorey}
-                />
-              </>
-            )}
+              ) : (
+                <div className="main-scroll">
+                  <SectionView section={activeSection} project={activeProject} />
+                </div>
+              )}
+            </motion.div>
+          )}
 
-            {activeSection !== '3.2' && (
-              <div className="main-scroll">
-                <SectionView
-                  section={activeSection}
-                  project={activeProject}
-                />
-              </div>
-            )}
-          </motion.div>
-        )}
+          {/* ── Empty States ── */}
+          {activeView === 'analysis' && !activeProject && (
+            <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="empty-state" style={{ height: '100%' }}>
+              <BarChart3 size={48} strokeWidth={1.2} />
+              <h2>No Project Selected</h2>
+              <p>Select a project from the sidebar or import a new database</p>
+            </motion.div>
+          )}
 
-        {activeView === 'analysis' && !activeProject && (
-          <div className="empty-state" style={{ height: '100%' }}>
-            <BarChart3 size={64} strokeWidth={1} />
-            <h2>No Project Selected</h2>
-            <p>Select a project from the sidebar or import a new database</p>
-          </div>
-        )}
+          {activeView === 'compare' && (
+            <motion.div key="compare" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="main-scroll">
+              <CompareView projects={projects} api={API} />
+            </motion.div>
+          )}
 
-        {activeView === 'compare' && <CompareView projects={projects} api={API} />}
+          {activeView === 'export' && activeProject && (
+            <motion.div key="export" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="main-scroll">
+              <ExportPanel project={activeProject} onExport={handleExport} settings={settings} />
+            </motion.div>
+          )}
 
-        {activeView === 'export' && activeProject && (
-          <div className="main-scroll">
-            <ExportPanel project={activeProject} onExport={handleExport} settings={settings} />
-          </div>
-        )}
+          {activeView === 'export' && !activeProject && (
+            <motion.div key="export-empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="empty-state" style={{ height: '100%' }}>
+              <FileText size={48} strokeWidth={1.2} />
+              <h2>No Project Selected</h2>
+              <p>Select a project from the sidebar to export its report</p>
+            </motion.div>
+          )}
 
-        {activeView === 'export' && !activeProject && (
-          <div className="empty-state" style={{ height: '100%' }}>
-            <FileText size={64} strokeWidth={1} />
-            <h2>No Project Selected</h2>
-            <p>Select a project to export its report</p>
-          </div>
-        )}
-
-        {activeView === 'settings' && (
-          <div className="main-scroll">
-            <SettingsPage settings={settings} onUpdate={updateSettings} />
-          </div>
-        )}
+          {activeView === 'settings' && (
+            <motion.div key="settings" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="main-scroll">
+              <SettingsPage settings={settings} onUpdate={updateSettings} />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </div>
   )
