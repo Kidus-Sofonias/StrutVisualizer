@@ -332,7 +332,8 @@ def _build_project_response(project):
             sections["4.1"] = calculate_section_4_1(project, sections["3.4"], ext_data)
             sections["4.2"] = calculate_section_4_2(ext_data)
             sections["4.3"] = calculate_section_4_3(project, ext_data)
-            sections["4.4"] = calculate_section_4_4(project, ext_data)
+            q_val = sections.get("3.4", {}).get("q", 2.76)
+            sections["4.4"] = calculate_section_4_4(project, ext_data, q=q_val)
             sections["4.5"] = calculate_section_4_5(project, ext_data)
             sections["4.6"] = calculate_section_4_6(project, sections.get("4.1", {}), ext_data)
         except Exception as e:

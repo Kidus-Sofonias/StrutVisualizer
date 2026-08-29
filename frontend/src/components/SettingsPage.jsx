@@ -46,15 +46,21 @@ export default function SettingsPage({ settings, onUpdate }) {
   return (
     <motion.div
       className="settings-page"
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24 }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        marginBottom: 28,
+      }}>
         <div>
-          <h2 style={{ fontSize: 20, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Settings size={20} /> Settings
+          <h2 style={{
+            fontSize: 22, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10,
+            letterSpacing: '-0.02em',
+          }}>
+            <Settings size={22} style={{ color: 'var(--accent)' }} /> Settings
           </h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: 13, marginTop: 4 }}>
+          <p style={{ color: 'var(--text-tertiary)', fontSize: 14, marginTop: 4 }}>
             Customize the application appearance and export behavior
           </p>
         </div>
@@ -65,7 +71,7 @@ export default function SettingsPage({ settings, onUpdate }) {
 
       {/* Appearance */}
       <div className="settings-section">
-        <h3><Sun size={16} style={{ verticalAlign: -2, marginRight: 6 }} /> Appearance</h3>
+        <h3><Sun size={16} style={{ verticalAlign: -2, color: 'var(--accent)' }} /> Appearance</h3>
         <div className="settings-row">
           <div>
             <div className="label">Theme</div>
@@ -75,14 +81,14 @@ export default function SettingsPage({ settings, onUpdate }) {
             <button
               className={local.theme === 'light' ? 'primary-btn' : 'secondary-btn'}
               onClick={() => update('theme', 'light')}
-              style={{ padding: '6px 14px', fontSize: 12 }}
+              style={{ padding: '7px 16px', fontSize: 12 }}
             >
               <Sun size={14} /> Light
             </button>
             <button
               className={local.theme === 'dark' ? 'primary-btn' : 'secondary-btn'}
               onClick={() => update('theme', 'dark')}
-              style={{ padding: '6px 14px', fontSize: 12 }}
+              style={{ padding: '7px 16px', fontSize: 12 }}
             >
               <Moon size={14} /> Dark
             </button>
@@ -96,11 +102,6 @@ export default function SettingsPage({ settings, onUpdate }) {
           <select
             value={local.fontSize}
             onChange={(e) => update('fontSize', e.target.value)}
-            style={{
-              padding: '6px 12px', borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--border)', background: 'var(--bg-tertiary)',
-              color: 'var(--text)', fontSize: 12,
-            }}
           >
             <option value="small">Small</option>
             <option value="medium">Medium</option>
@@ -111,7 +112,7 @@ export default function SettingsPage({ settings, onUpdate }) {
 
       {/* Display */}
       <div className="settings-section">
-        <h3><BarChart3 size={16} style={{ verticalAlign: -2, marginRight: 6 }} /> Display</h3>
+        <h3><BarChart3 size={16} style={{ verticalAlign: -2, color: 'var(--accent)' }} /> Display</h3>
         <div className="settings-row">
           <div>
             <div className="label">Show Engineering Background Text</div>
@@ -134,11 +135,6 @@ export default function SettingsPage({ settings, onUpdate }) {
           <select
             value={local.storeySortOrder}
             onChange={(e) => update('storeySortOrder', e.target.value)}
-            style={{
-              padding: '6px 12px', borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--border)', background: 'var(--bg-tertiary)',
-              color: 'var(--text)', fontSize: 12,
-            }}
           >
             <option value="top-down">Top to Bottom</option>
             <option value="bottom-up">Bottom to Top</option>
@@ -148,7 +144,7 @@ export default function SettingsPage({ settings, onUpdate }) {
 
       {/* Charts */}
       <div className="settings-section">
-        <h3><BarChart3 size={16} style={{ verticalAlign: -2, marginRight: 6 }} /> Charts</h3>
+        <h3><BarChart3 size={16} style={{ verticalAlign: -2, color: 'var(--accent)' }} /> Charts</h3>
         <div className="settings-row">
           <div>
             <div className="label">Chart Animations</div>
@@ -167,7 +163,7 @@ export default function SettingsPage({ settings, onUpdate }) {
 
       {/* Export */}
       <div className="settings-section">
-        <h3><Download size={16} style={{ verticalAlign: -2, marginRight: 6 }} /> Export</h3>
+        <h3><Download size={16} style={{ verticalAlign: -2, color: 'var(--accent)' }} /> Export</h3>
         <div className="settings-row">
           <div>
             <div className="label">Default Export Format</div>
@@ -177,14 +173,14 @@ export default function SettingsPage({ settings, onUpdate }) {
             <button
               className={local.defaultExportFormat === 'excel' ? 'primary-btn' : 'secondary-btn'}
               onClick={() => update('defaultExportFormat', 'excel')}
-              style={{ padding: '6px 14px', fontSize: 12 }}
+              style={{ padding: '7px 16px', fontSize: 12 }}
             >
               <Table size={14} /> Excel
             </button>
             <button
               className={local.defaultExportFormat === 'pdf' ? 'primary-btn' : 'secondary-btn'}
               onClick={() => update('defaultExportFormat', 'pdf')}
-              style={{ padding: '6px 14px', fontSize: 12 }}
+              style={{ padding: '7px 16px', fontSize: 12 }}
             >
               <FileText size={14} /> PDF
             </button>
@@ -222,7 +218,7 @@ export default function SettingsPage({ settings, onUpdate }) {
 
       {/* Data */}
       <div className="settings-section">
-        <h3><Settings size={16} style={{ verticalAlign: -2, marginRight: 6 }} /> Data</h3>
+        <h3><Settings size={16} style={{ verticalAlign: -2, color: 'var(--accent)' }} /> Data</h3>
         <div className="settings-row">
           <div>
             <div className="label">Auto-Recalculate on Import</div>

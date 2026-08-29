@@ -339,15 +339,19 @@ def calculate_section_4_3(project: Project, ext_data: Dict) -> Dict:
     }
 
 
-def calculate_section_4_4(project: Project, ext_data: Dict) -> Dict:
+def calculate_section_4_4(project: Project, ext_data: Dict, q: float = 2.76) -> Dict:
     """
     4.4 — Stability Analysis (P-Delta).
-    θ = ΣPu × Δu / (Hu × hs)
+    θ = ΣPu × Δui / (Hu × hi)
+    
+    Per Eurocode 8 §3.1.12: Δui is the INELASTIC drift,
+    estimated via equal displacement rule: Δui = q × Δu_design
     
     Uses:
-    - Ptot from SESMASSX (axial loads)
+    - Ptot from SESMASSX + SESMASSY (Column + Pier axial loads)
     - Hu from CORSX1/CORSY1 story shears
     - Δu from CORSX1/CORSY1 diaphragm displacements (inter-storey drift)
+    - q from behavioral factor (Section 3.4)
     """
     storeys = project.get_storeys_sorted()
     
@@ -395,8 +399,11 @@ def calculate_section_4_4(project: Project, ext_data: Dict) -> Dict:
             else:
                 delta_u = ux_here
             
+            # Apply inelastic drift: Δui = q × Δu_design (EC8 §3.1.12)
+            delta_u_inelastic = q * delta_u
+            
             if hu > 0 and height > 0:
-                theta = abs(ptot * delta_u) / (hu * height)
+                theta = abs(ptot * delta_u_inelastic) / (hu * height)
             else:
                 theta = 0
             

@@ -1,0 +1,215 @@
+
+<!doctype html>
+<html><head><meta charset="utf-8"><title>Structural App</title>
+<style>
+body{font-family:Arial,sans-serif;margin:26px;background:#f4f6f8;color:#172033}
+.card{background:#fff;border-radius:10px;padding:18px;margin:15px 0;box-shadow:0 1px 5px #cbd5e1}
+h1{margin-bottom:3px} h2{margin-top:0}
+table{border-collapse:collapse;width:100%;font-size:13px}th,td{border:1px solid #cbd5e1;padding:7px;text-align:center}
+th{background:#e8eef7}input,select{width:100%;padding:9px;box-sizing:border-box;margin:7px 0}
+button{background:#1d4ed8;color:#fff;border:0;border-radius:6px;padding:10px 15px;cursor:pointer}
+.note{background:#eff6ff;border-left:4px solid #2563eb;padding:11px}.scroll{overflow:auto}
+.ok{color:#15803d;font-weight:bold}.bad{color:#b91c1c;font-weight:bold}.missing{color:#a16207;font-weight:bold}
+.small{font-size:12px;color:#475569}
+</style>
+<style>
+.report-table th, .report-table td { text-align:center; }
+.report-table th:first-child, .report-table td:first-child { text-align:center; }
+.caption { margin-top: 18px; font-size: 1.05rem; }
+.status { font-weight: 600; }
+</style>
+
+</head><body>
+<h1>Structural App</h1>
+<p>Integrated prototype: Tables 3.2.2 → 3.2.3 → 3.2.4 → 3.2.5 → 3.2.6 → 3.2.7 → 3.2.8</p>
+
+<div class="card">
+<h2>1. Import Access Database</h2>
+<form action="/import" method="post" enctype="multipart/form-data">
+<input type="file" name="file" accept=".mdb,.accdb" required>
+<button>Import and Calculate All Tables</button>
+</form>
+{% if d.message %}<div class="note">{{d.message}}</div>{% endif %}
+</div>
+
+{% if d.table_324 %}
+<div class="card">
+<h2>Table 3.2.2 — Center Mass Rigidity / Structural Eccentricity</h2>
+<div class="scroll"><table>
+<tr><th>Storey</th><th>CMX</th><th>CMY</th><th>CRX</th><th>CRY</th><th>Eox</th><th>Eoy</th></tr>
+{% for r in d.table_322 %}
+<tr><td>{{r.story}}</td><td>{{r.cmx|fmt3}}</td><td>{{r.cmy|fmt3}}</td><td>{{r.crx|fmt3}}</td><td>{{r.cry|fmt3}}</td><td>{{r.eox|fmt3}}</td><td>{{r.eoy|fmt3}}</td></tr>
+{% endfor %}
+</table></div>
+<p class="caption"><b>Table 3.2.2:</b> Center Mass Rigidity and Structural Eccentricity</p>
+</div>
+
+<div class="card">
+<h2>Table 3.2.3 — Torsional Radius</h2>
+<div class="scroll"><table>
+<tr><th>Storey</th><th>UL1→UX</th><th>UL2→UY</th><th>UL3→RZ</th><th>r<sub>x</sub></th><th>r<sub>y</sub></th></tr>
+{% for r in d.table_323 %}
+<tr><td>{{r.story}}</td><td>{{r.ux|fmt3}}</td><td>{{r.uy|fmt3}}</td><td>{{r.rz|fmt3}}</td><td>{{r.rx|fmt3}}</td><td>{{r.ry|fmt3}}</td></tr>
+{% endfor %}
+</table></div>
+<p class="caption"><b>Table 3.2.3:</b> Torsional Radius</p>
+</div>
+
+<div class="card">
+<h2>Table 3.2.4 — Structural Eccentricity and Radius of Gyration Comparison</h2>
+<p class="small">Limit: Eox ≤ 0.3rx and Eoy ≤ 0.3ry</p>
+<div class="scroll"><table>
+<tr><th>Storey</th><th>Eox (m)</th><th>rx (m)</th><th>0.3×rx (m)</th><th>X Status</th><th>Eoy (m)</th><th>ry (m)</th><th>0.3×ry (m)</th><th>Y Status</th></tr>
+{% for r in d.table_324 %}
+<tr>
+<td>{{r.story}}</td><td>{{r.eox|fmt3}}</td><td>{{r.rx|fmt3}}</td><td>{{r.limit_x|fmt3}}</td>
+<td class="{{'ok' if r.status_x=='OK' else ('bad' if r.status_x=='NOT OK' else 'missing')}}">{{r.status_x}}</td>
+<td>{{r.eoy|fmt3}}</td><td>{{r.ry|fmt3}}</td><td>{{r.limit_y|fmt3}}</td>
+<td class="{{'ok' if r.status_y=='OK' else ('bad' if r.status_y=='NOT OK' else 'missing')}}">{{r.status_y}}</td>
+</tr>
+{% endfor %}
+</table></div>
+<p class="caption"><b>Table 3.2.4:</b> Structural Eccentricity and Radius of Gyration Comparison</p>
+</div>
+
+<div class="card">
+<h2>Table 3.2.5 — Torsional Radius / Radius of Gyration</h2>
+<p class="small">Torsional radius should be greater than radius of gyration of each floor system: <b>r &gt;= Ls</b></p>
+<div class="scroll"><table class="report-table">
+<tr>
+<th>Story</th><th>r<sub>x</sub></th><th>l<sub>s</sub></th><th>Status</th>
+<th>r<sub>y</sub></th><th>l<sub>s</sub></th><th>Status</th>
+</tr>
+{% for r in d.table_325_report %}
+<tr>
+<td>{{r.story}}</td>
+<td>{{r.rx|fmt3}}</td>
+<td>{{r.ls_x|fmt3}}</td>
+<td class="status">{{r.status_x}}</td>
+<td>{{r.ry|fmt3}}</td>
+<td>{{r.ls_y|fmt3}}</td>
+<td class="status">{{r.status_y}}</td>
+</tr>
+{% endfor %}
+</table></div>
+<p class="caption"><b>Table 3.2.5:</b> Torsional Radius and Radius of Gyration Comparison for the Building</p>
+</div>
+
+<div class="card">
+<h2>Table 3.2.6 — Storey Stiffness along X Direction of the Building</h2>
+<p class="small">Stiffness X = |Storey Shear (EQX) / dr Xx|, where dr Xx = Diaphram Drift (EQX, DriftX) × Storey Height. Check: <b>K<sub>i</sub> ≥ 0.7K<sub>i+1</sub></b>.</p>
+<div class="scroll"><table class="report-table">
+<tr><th>Storey</th><th>Stiffness X axis (kN/m)</th><th>K<sub>i</sub> ≥ 0.7K<sub>i+1</sub> X axis</th></tr>
+{% for r in d.table_326 %}
+<tr>
+<td>{{r.story}}</td>
+<td>{{r.stiffness_x|fmt3}}</td>
+<td class="status {{'ok' if r.status_x=='OK' else ('bad' if r.status_x=='NOT OK' else 'missing')}}">{{r.status_x}}</td>
+</tr>
+{% endfor %}
+</table></div>
+<p class="caption"><b>Table 3.2.6:</b> Storey Stiffness along X Direction of the Building</p>
+<div class="chart-card">
+<h3>Stiffness Distribution along Building Height — X Direction</h3>
+<p class="small">Stiffness is plotted against actual storey elevation. The chart follows the same displayed storeys as Table 3.2.6.</p>
+<canvas id="stiffnessChartX" class="stiffness-chart" aria-label="Stiffness X distribution along building height"></canvas>
+</div>
+</div>
+
+<div class="card">
+<h2>Table 3.2.7 — Storey Stiffness along Y Direction of the Building</h2>
+<p class="small">Stiffness Y = |Storey Shear (EQY) / dr Yy|, where dr Yy is the EQY Y-direction drift from the next Diaphragm Drifts row × Storey Height, matching the Excel formula. Check: <b>K<sub>i</sub> ≥ 0.7K<sub>i+1</sub></b>.</p>
+<div class="scroll"><table class="report-table">
+<tr><th>Storey</th><th>Stiffness Y axis (kN/m)</th><th>K<sub>i</sub> ≥ 0.7K<sub>i+1</sub> Y axis</th></tr>
+{% for r in d.table_327 %}
+<tr>
+<td>{{r.story}}</td>
+<td>{{r.stiffness_y|fmt3}}</td>
+<td class="status {{'ok' if r.status_y=='OK' else ('bad' if r.status_y=='NOT OK' else 'missing')}}">{{r.status_y}}</td>
+</tr>
+{% endfor %}
+</table></div>
+<p class="caption"><b>Table 3.2.7:</b> Storey Stiffness along Y Direction of the Building</p>
+<div class="chart-card">
+<h3>Stiffness Distribution along Building Height — Y Direction</h3>
+<p class="small">Stiffness is plotted against actual storey elevation. The chart follows the same displayed storeys as Table 3.2.7.</p>
+<canvas id="stiffnessChartY" class="stiffness-chart" aria-label="Stiffness Y distribution along building height"></canvas>
+</div>
+</div>
+
+<div class="card">
+<h2>Table 3.2.8 — Mass Distribution along height of the Building</h2>
+<p class="small">Mass is taken from <b>Center Mass Rigidity</b>. Check: <b>M<sub>i</sub> &lt; 2M<sub>i+1</sub></b> and <b>M<sub>i</sub> &lt; 2M<sub>i-1</sub></b>. Stories are displayed from the highest elevation down to elevation 0.00; stories below 0.00 are excluded.</p>
+<div class="scroll"><table class="report-table">
+<tr>
+<th>Storey</th><th>Mass<br>(1000 × Kg)</th><th>M<sub>i</sub> &lt; 2M<sub>i+1</sub></th><th>M<sub>i</sub> &lt; 2M<sub>i-1</sub></th>
+</tr>
+{% for r in d.table_328 %}
+<tr>
+<td>{{r.story}}</td>
+<td>{{r.mass|fmt3}}</td>
+<td class="status {{'ok' if r.mass_status_upper=='OK' else ('bad' if r.mass_status_upper=='NOT OK' else 'missing')}}">{{r.mass_status_upper}}</td>
+<td class="status {{'ok' if r.mass_status_lower=='OK' else ('bad' if r.mass_status_lower=='NOT OK' else 'missing')}}">{{r.mass_status_lower}}</td>
+</tr>
+{% endfor %}
+</table></div>
+<p class="caption"><b>Table 3.2.8:</b> Mass Distribution along height of the Building</p>
+</div>
+
+</div>
+{% endif %}
+
+<style>
+.chart-card{margin-top:18px;padding:16px 12px 8px;border:1px solid #dbe3ee;border-radius:10px;background:#fbfdff}
+.chart-card h3{margin:2px 0 6px;font-size:18px}
+.stiffness-chart{display:block;width:100%;height:360px;max-height:360px}
+</style>
+<script>
+function drawStiffnessChart(canvasId, rows, valueKey, title){
+  const canvas=document.getElementById(canvasId); if(!canvas) return;
+  const dpr=window.devicePixelRatio||1, rect=canvas.getBoundingClientRect();
+  const W=Math.max(720, Math.round(rect.width)), H=360;
+  canvas.width=W*dpr; canvas.height=H*dpr;
+  const ctx=canvas.getContext('2d'); ctx.scale(dpr,dpr);
+  const valid=rows.map(r=>({story:r.story,elevation:Number(r.elevation),value:Number(r[valueKey])}))
+    .filter(r=>Number.isFinite(r.elevation)&&Number.isFinite(r.value));
+  if(!valid.length){ctx.font='16px Arial';ctx.fillText('No calculated stiffness data available.',30,40);return;}
+  valid.sort((a,b)=>a.elevation-b.elevation);
+  const left=92,right=28,top=26,bottom=54, pw=W-left-right, ph=H-top-bottom;
+  const minE=Math.min(...valid.map(r=>r.elevation)), maxE=Math.max(...valid.map(r=>r.elevation));
+  const minV=Math.min(0,...valid.map(r=>r.value)), maxV=Math.max(...valid.map(r=>r.value));
+  const eSpan=(maxE-minE)||1, vSpan=(maxV-minV)||1;
+  const x=v=>left+(v-minV)/vSpan*pw;
+  const y=e=>top+ph-(e-minE)/eSpan*ph;
+  ctx.clearRect(0,0,W,H); ctx.font='12px Arial'; ctx.fillStyle='#475569'; ctx.strokeStyle='#d7dee8'; ctx.lineWidth=1;
+  const ticks=5;
+  for(let i=0;i<=ticks;i++){
+    const vv=minV+vSpan*i/ticks, xx=x(vv); ctx.beginPath();ctx.moveTo(xx,top);ctx.lineTo(xx,top+ph);ctx.stroke();
+    ctx.fillStyle='#475569';ctx.textAlign='center';ctx.fillText(vv.toLocaleString(undefined,{maximumFractionDigits:0}),xx,H-25);
+  }
+  const eTicks=Math.min(8,Math.max(3,valid.length));
+  for(let i=0;i<eTicks;i++){
+    const ee=minE+eSpan*i/(eTicks-1), yy=y(ee); ctx.strokeStyle='#e5eaf0';ctx.beginPath();ctx.moveTo(left,yy);ctx.lineTo(left+pw,yy);ctx.stroke();
+    ctx.fillStyle='#475569';ctx.textAlign='right';ctx.fillText(ee.toFixed(2),left-10,yy+4);
+  }
+  ctx.strokeStyle='#64748b';ctx.beginPath();ctx.moveTo(left,top);ctx.lineTo(left,top+ph);ctx.lineTo(left+pw,top+ph);ctx.stroke();
+  ctx.strokeStyle='#2563eb';ctx.lineWidth=3;ctx.beginPath();
+  valid.forEach((r,i)=>{const xx=x(r.value),yy=y(r.elevation); if(i===0)ctx.moveTo(xx,yy);else ctx.lineTo(xx,yy);}); ctx.stroke();
+  valid.forEach(r=>{const xx=x(r.value),yy=y(r.elevation);ctx.fillStyle='#2563eb';ctx.beginPath();ctx.arc(xx,yy,4,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle='#172033';ctx.textAlign='left';ctx.font='11px Arial';ctx.fillText(r.story,Math.min(xx+7,W-85),yy-7);});
+  ctx.fillStyle='#172033';ctx.font='bold 15px Arial';ctx.textAlign='center';ctx.fillText(title,left+pw/2,17);
+  ctx.font='12px Arial';ctx.fillStyle='#475569';ctx.textAlign='center';ctx.fillText('Stiffness (kN/m)',left+pw/2,H-5);
+  ctx.save();ctx.translate(15,top+ph/2);ctx.rotate(-Math.PI/2);ctx.fillText('Elevation (m)',0,0);ctx.restore();
+}
+
+function renderStiffnessCharts(){
+  const xRows={{ d.table_326|tojson }};
+  const yRows={{ d.table_327|tojson }};
+  drawStiffnessChart('stiffnessChartX',xRows,'stiffness_x','Stiffness X Axis — Distribution along Building Height');
+  drawStiffnessChart('stiffnessChartY',yRows,'stiffness_y','Stiffness Y Axis — Distribution along Building Height');
+}
+window.addEventListener('load',renderStiffnessCharts);
+window.addEventListener('resize',renderStiffnessCharts);
+</script>
+
+</body></html>

@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { GitCompare, Plus, X } from 'lucide-react'
+import { GitCompare, Plus } from 'lucide-react'
 
 export default function CompareView({ projects, api }) {
   const [selectedIds, setSelectedIds] = useState([])
@@ -32,30 +32,43 @@ export default function CompareView({ projects, api }) {
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <div style={{ marginBottom: 24 }}>
-        <h2 style={{ fontSize: 18, marginBottom: 16 }}>Select Projects to Compare</h2>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+      <div style={{ marginBottom: 32 }}>
+        <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4, letterSpacing: '-0.01em' }}>
+          Compare Projects
+        </h2>
+        <p style={{ color: 'var(--text-tertiary)', fontSize: 14, marginBottom: 20 }}>
+          Select two or more projects to compare their structural analysis results side by side.
+        </p>
+
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           {projects.map(p => (
             <button
               key={p.id}
               onClick={() => toggleProject(p.id)}
               style={{
-                padding: '10px 16px',
-                borderRadius: 'var(--radius-sm)',
-                border: `2px solid ${selectedIds.includes(p.id) ? 'var(--accent)' : 'var(--border)'}`,
-                background: selectedIds.includes(p.id) ? 'rgba(37, 99, 235, 0.1)' : 'var(--bg-card)',
-                color: 'var(--text-primary)',
+                padding: '10px 18px',
+                borderRadius: 'var(--radius-md)',
+                border: `1.5px solid ${selectedIds.includes(p.id) ? 'var(--accent)' : 'var(--border-primary)'}`,
+                background: selectedIds.includes(p.id) ? 'var(--accent-subtle)' : 'var(--bg-surface)',
+                color: selectedIds.includes(p.id) ? 'var(--accent)' : 'var(--text-secondary)',
                 cursor: 'pointer',
-                fontFamily: 'inherit',
-                fontSize: 13,
-                transition: 'all 0.2s',
+                fontFamily: 'inherit', fontSize: 13, fontWeight: 500,
+                transition: 'all 0.15s ease',
+                display: 'flex', alignItems: 'center', gap: 6,
               }}
             >
-              {selectedIds.includes(p.id) && <Plus size={14} style={{ marginRight: 6 }} />}
-              {p.name} ({p.storeys} storeys)
+              {selectedIds.includes(p.id) && <Plus size={14} />}
+              {p.name}
+              <span style={{
+                fontSize: 11, color: 'var(--text-tertiary)',
+                fontFamily: "'JetBrains Mono', monospace",
+              }}>
+                ({p.storeys}S)
+              </span>
             </button>
           ))}
         </div>
+
         {selectedIds.length >= 2 && (
           <button
             className="primary-btn"
@@ -63,7 +76,7 @@ export default function CompareView({ projects, api }) {
             disabled={loading}
             style={{ marginTop: 16 }}
           >
-            <GitCompare size={16} />
+            {loading ? <div className="spinner" style={{ width: 16, height: 16 }} /> : <GitCompare size={16} />}
             Compare {selectedIds.length} Projects
           </button>
         )}
@@ -75,8 +88,9 @@ export default function CompareView({ projects, api }) {
             <motion.div
               key={proj.project_id}
               className="compare-card"
-              initial={{ opacity: 0, x: idx === 0 ? -20 : 20 }}
-              animate={{ opacity: 1, x: 0 }}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: idx * 0.1 }}
             >
               <h3>{proj.project_name}</h3>
               <div style={{ overflowX: 'auto' }}>

@@ -265,37 +265,60 @@ def _parse_cors_shears(parser) -> Dict:
 
 
 def _parse_axial_loads(parser) -> Dict:
-    """Parse axial loads from SESMASSX/SESMASSY load cases (Column Forces P)."""
-    try:
-        table = parser.parse_table("Column Forces")
-        if not table:
-            return {}
-    except Exception:
-        return {}
-
-    stories = table.get("Story", [])
-    loads = table.get("Load", [])
-    locs = table.get("Loc", [])
-    p = table.get("P", [])
-
+    """Parse axial loads from SESMASSX/SESMASSY load cases.
+    Includes BOTH Column Forces AND Pier Forces (shear walls).
+    The Excel Ptot = sum of column P + pier P at each storey.
+    """
     target_loads = {"SESMASSX", "SESMASSY"}
     result = {}
 
-    for i in range(len(stories)):
-        load = loads[i] if i < len(loads) else None
-        if load not in target_loads:
-            continue
-        loc = locs[i] if i < len(locs) else None
-        if loc != 0:
-            continue
+    # 1. Column Forces — sum P at Loc=0 (base of columns at each storey)
+    try:
+        table = parser.parse_table("Column Forces")
+        if table:
+            stories = table.get("Story", [])
+            loads = table.get("Load", [])
+            locs = table.get("Loc", [])
+            p = table.get("P", [])
+            for i in range(len(stories)):
+                load = loads[i] if i < len(loads) else None
+                if load not in target_loads:
+                    continue
+                loc = locs[i] if i < len(locs) else None
+                if loc != 0:
+                    continue
+                story = stories[i] if i < len(stories) else None
+                if not story:
+                    continue
+                if load not in result:
+                    result[load] = defaultdict(float)
+                result[load][story] += abs(p[i]) if i < len(p) and p[i] else 0
+    except Exception:
+        pass
 
-        story = stories[i] if i < len(stories) else None
-        if not story:
-            continue
-
-        if load not in result:
-            result[load] = defaultdict(float)
-        result[load][story] += abs(p[i]) if i < len(p) else 0
+    # 2. Pier Forces — sum P at Bottom (base of shear walls at each storey)
+    try:
+        table = parser.parse_table("Pier Forces")
+        if table:
+            stories = table.get("Story", [])
+            loads = table.get("Load", [])
+            locs = table.get("Loc", [])
+            p = table.get("P", [])
+            for i in range(len(stories)):
+                load = loads[i] if i < len(loads) else None
+                if load not in target_loads:
+                    continue
+                loc = locs[i] if i < len(locs) else None
+                if loc != "Bottom":
+                    continue
+                story = stories[i] if i < len(stories) else None
+                if not story:
+                    continue
+                if load not in result:
+                    result[load] = defaultdict(float)
+                result[load][story] += abs(p[i]) if i < len(p) and p[i] else 0
+    except Exception:
+        pass
 
     return dict(result)
 
