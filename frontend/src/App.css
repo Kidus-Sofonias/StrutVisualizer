@@ -422,6 +422,31 @@ body {
 .status-cell.fail { color: var(--fail); font-weight: 600; }
 .status-cell.na { color: var(--text-tertiary); }
 
+/* ─── Calc Table (for sections 3.3–4.6) ──────────────────────── */
+.calc-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 12px;
+}
+.calc-table thead th {
+  padding: 8px 12px; text-align: left;
+  background: var(--bg-subtle);
+  font-size: 11px; font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 2px solid var(--border-primary);
+  white-space: nowrap;
+  position: sticky; top: 0; z-index: 1;
+}
+.calc-table tbody td {
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border-subtle);
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  font-feature-settings: 'tnum';
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+.calc-table tbody tr { transition: background var(--transition-fast); }
+.calc-table tbody tr:hover { background: var(--bg-hover); }
+
 /* ── Chart beside table ─────────────────────────────────────────── */
 .table-chart-chart {
   background: var(--bg-surface);

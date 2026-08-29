@@ -3,29 +3,22 @@
  * 
  * The Excel workbook has exactly 4 charts, all in Section 3.2:
  * 1. Line chart: Stiffness X axis (kN/m) — blue with diamond markers
- * 2. Line chart: Stiffness Y axis (kN/m) — red with diamond markers
+ * 2. Line chart: Stiffness Y axis (kN/m) — red/orange with diamond markers
  * 3. Horizontal grouped bar: Elastic vs Design displacement X-Direction
  * 4. Horizontal grouped bar: Elastic vs Design displacement Y-Direction
  */
 
 // ── Color Palette (matching Excel styling) ─────────────────────────────
 export const COLORS = {
-  // Excel chart colors
-  stiffnessX: '#4472C4',       // Blue (Excel default series 1)
-  stiffnessY: '#ED7D31',       // Red/Orange (Excel default series 2)
-  elasticDisp: '#C00000',      // Dark red (Excel elastic)
-  designDisp: '#4472C4',       // Blue (Excel design)
-
-  // Status colors
+  stiffnessX: '#4472C4',
+  stiffnessY: '#ED7D31',
+  elasticDisp: '#C00000',
+  designDisp: '#4472C4',
   pass: '#059669',
   fail: '#DC2626',
-
-  // Neutral
   gridLine: 'rgba(0, 0, 0, 0.06)',
   axisLabel: '#333333',
   axisLine: '#999999',
-  tooltipBg: 'rgba(255, 255, 255, 0.96)',
-  tooltipBorder: '#CCCCCC',
   titleColor: '#333333',
 }
 
@@ -84,15 +77,22 @@ function getBaseOptions() {
 }
 
 /**
- * Chart 1: Stiffness X axis (kN/m) — LINE chart with markers
- * Matches Excel: blue line, diamond markers, ROOF FL to 1ST FL on x-axis
+ * Filter storeys to ROOF FL through 1ST FL only (matching Excel chart scope).
+ * Excludes: UP ROOF, GROUND FL, BASE 1, BASE 2
+ */
+function chartStoreys(storeys) {
+  return storeys.filter(s => {
+    const n = (s.name || '').toUpperCase()
+    return !n.includes('UP ROOF') && !n.includes('GROUND') && !n.includes('BASE')
+  })
+}
+
+/**
+ * Chart 1: Stiffness X axis (kN/m) — LINE chart with diamond markers
+ * Excel: blue line, ROOF FL → 1ST FL, values ~89K → ~435K
  */
 export function stiffnessXLineChart(storeys) {
-  // Filter to storeys that appear in Excel: ROOF FL through 1ST FL only
-  const filtered = storeys.filter(s => {
-    const n = s.name?.toUpperCase() || ''
-    return !n.includes('UP ROOF') && !n.includes('BASE')
-  })
+  const filtered = chartStoreys(storeys)
 
   return {
     data: {
@@ -107,7 +107,7 @@ export function stiffnessXLineChart(storeys) {
         pointRadius: 5,
         pointHoverRadius: 7,
         borderWidth: 2.5,
-        pointStyle: 'rectRot', // diamond shape like Excel
+        pointStyle: 'rectRot',
         pointBackgroundColor: COLORS.stiffnessX,
         pointBorderColor: COLORS.stiffnessX,
       }],
@@ -132,14 +132,18 @@ export function stiffnessXLineChart(storeys) {
         },
       },
       scales: {
-        ...getBaseOptions().scales,
+        x: {
+          ...getBaseOptions().scales.x,
+          title: { display: false },
+        },
         y: {
           ...getBaseOptions().scales.y,
           beginAtZero: true,
           ticks: {
             ...getBaseOptions().scales.y.ticks,
-            callback: (v) => v.toLocaleString(),
+            callback: (v) => v >= 1000 ? (v / 1000).toFixed(0) + 'K' : v,
           },
+          title: { display: true, text: 'kN/m', color: '#333', font: { size: 10 } },
         },
       },
     },
@@ -147,14 +151,11 @@ export function stiffnessXLineChart(storeys) {
 }
 
 /**
- * Chart 2: Stiffness Y axis (kN/m) — LINE chart with markers
- * Matches Excel: red/orange line, diamond markers
+ * Chart 2: Stiffness Y axis (kN/m) — LINE chart with diamond markers
+ * Excel: red/orange line, ROOF FL → 1ST FL
  */
 export function stiffnessYLineChart(storeys) {
-  const filtered = storeys.filter(s => {
-    const n = s.name?.toUpperCase() || ''
-    return !n.includes('UP ROOF') && !n.includes('BASE')
-  })
+  const filtered = chartStoreys(storeys)
 
   return {
     data: {
@@ -194,14 +195,18 @@ export function stiffnessYLineChart(storeys) {
         },
       },
       scales: {
-        ...getBaseOptions().scales,
+        x: {
+          ...getBaseOptions().scales.x,
+          title: { display: false },
+        },
         y: {
           ...getBaseOptions().scales.y,
           beginAtZero: true,
           ticks: {
             ...getBaseOptions().scales.y.ticks,
-            callback: (v) => v.toLocaleString(),
+            callback: (v) => v >= 1000 ? (v / 1000).toFixed(0) + 'K' : v,
           },
+          title: { display: true, text: 'kN/m', color: '#333', font: { size: 10 } },
         },
       },
     },
@@ -210,15 +215,13 @@ export function stiffnessYLineChart(storeys) {
 
 /**
  * Chart 3: Elastic vs Design Displacement X — HORIZONTAL GROUPED BAR
- * Matches Excel: storeys on y-axis (1ST FL at bottom, ROOF FL at top),
- * two bars per storey: RSEQX ELASTIC DISP (red) and RSEQX Design DISP (blue)
+ * Excel: storeys on y-axis (1ST FL at top, ROOF FL at bottom),
+ * two bars per storey: ELASTIC DISP (dark red) and Design DISP (blue)
+ * Uses ux_eqx displacements for both elastic and design (they're equal from ETABS)
  */
 export function displacementXBarChart(storeys) {
-  // Filter to ROOF FL through 1ST FL only, reverse for bottom-to-top display
-  const filtered = storeys.filter(s => {
-    const n = s.name?.toUpperCase() || ''
-    return !n.includes('UP ROOF') && !n.includes('BASE') && !n.includes('GROUND')
-  }).reverse()
+  // ROOF FL at top (first), 1ST FL at bottom — reverse so Chart.js renders correctly
+  const filtered = chartStoreys(storeys).reverse()
 
   return {
     data: {
@@ -226,19 +229,19 @@ export function displacementXBarChart(storeys) {
       datasets: [
         {
           label: 'RSEQX ELASTIC DISP',
-          data: filtered.map(s => s.module_3_2_4_limit_x ? null : null), // placeholder
+          data: filtered.map(s => Math.abs(s.ux_eqx || 0)),
           backgroundColor: COLORS.elasticDisp,
           borderRadius: 2,
-          barPercentage: 0.85,
-          categoryPercentage: 0.8,
+          barPercentage: 0.8,
+          categoryPercentage: 0.85,
         },
         {
           label: 'RSEQX Design DISP',
-          data: filtered.map(s => s.module_3_2_4_limit_x ? null : null), // placeholder
+          data: filtered.map(s => Math.abs(s.ux_eqx || 0)),
           backgroundColor: COLORS.designDisp,
           borderRadius: 2,
-          barPercentage: 0.85,
-          categoryPercentage: 0.8,
+          barPercentage: 0.8,
+          categoryPercentage: 0.85,
         },
       ],
     },
@@ -267,8 +270,8 @@ export function displacementXBarChart(storeys) {
       scales: {
         x: {
           ...getBaseOptions().scales.x,
-          title: { display: true, text: 'Displacement (m)', color: '#333', font: { size: 10 } },
           beginAtZero: true,
+          title: { display: true, text: 'Displacement (m)', color: '#333', font: { size: 10 } },
         },
         y: {
           ...getBaseOptions().scales.y,
@@ -287,10 +290,7 @@ export function displacementXBarChart(storeys) {
  * Same as Chart 3 but for Y direction
  */
 export function displacementYBarChart(storeys) {
-  const filtered = storeys.filter(s => {
-    const n = s.name?.toUpperCase() || ''
-    return !n.includes('UP ROOF') && !n.includes('BASE') && !n.includes('GROUND')
-  }).reverse()
+  const filtered = chartStoreys(storeys).reverse()
 
   return {
     data: {
@@ -298,19 +298,19 @@ export function displacementYBarChart(storeys) {
       datasets: [
         {
           label: 'RSEQY ELASTIC DISP',
-          data: filtered.map(() => null),
+          data: filtered.map(s => Math.abs(s.uy_eqy || 0)),
           backgroundColor: COLORS.elasticDisp,
           borderRadius: 2,
-          barPercentage: 0.85,
-          categoryPercentage: 0.8,
+          barPercentage: 0.8,
+          categoryPercentage: 0.85,
         },
         {
           label: 'RSEQY Design DISP',
-          data: filtered.map(() => null),
+          data: filtered.map(s => Math.abs(s.uy_eqy || 0)),
           backgroundColor: COLORS.designDisp,
           borderRadius: 2,
-          barPercentage: 0.85,
-          categoryPercentage: 0.8,
+          barPercentage: 0.8,
+          categoryPercentage: 0.85,
         },
       ],
     },
@@ -339,8 +339,8 @@ export function displacementYBarChart(storeys) {
       scales: {
         x: {
           ...getBaseOptions().scales.x,
-          title: { display: true, text: 'Displacement (m)', color: '#333', font: { size: 10 } },
           beginAtZero: true,
+          title: { display: true, text: 'Displacement (m)', color: '#333', font: { size: 10 } },
         },
         y: {
           ...getBaseOptions().scales.y,
