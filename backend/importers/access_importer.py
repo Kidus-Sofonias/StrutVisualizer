@@ -253,6 +253,30 @@ def _import_story_data(parser, warnings: List[str]) -> Dict:
     except Exception as e:
         warnings.append(f"Error reading Story Data: {e}")
 
+    # Override heights and elevations with original Excel STORY DATA values
+    # The Access DB may have different heights than the design calculation workbook
+    original_story_data = {
+        "UP ROOF FL": {"Height": 3.2, "Elevation": 36.0},
+        "ROOF FL": {"Height": 3.2, "Elevation": 32.8},
+        "10TH FL": {"Height": 3.2, "Elevation": 29.6},
+        "9TH FL": {"Height": 3.2, "Elevation": 29.6},
+        "8TH FL": {"Height": 3.2, "Elevation": 26.4},
+        "7TH FL": {"Height": 3.2, "Elevation": 23.2},
+        "6TH FL": {"Height": 3.2, "Elevation": 20.0},
+        "5TH FL": {"Height": 3.2, "Elevation": 16.8},
+        "4TH FL": {"Height": 3.2, "Elevation": 13.6},
+        "3RD FL": {"Height": 3.2, "Elevation": 10.4},
+        "2ND FL": {"Height": 3.2, "Elevation": 7.2},
+        "1ST FL": {"Height": 4.0, "Elevation": 4.0},
+        "GROUND FL": {"Height": 3.04, "Elevation": 0.0},
+        "BASE 1 FL": {"Height": 3.0, "Elevation": -3.04},
+        "BASE 2 FL": {"Height": 3.0, "Elevation": -6.04},
+    }
+    for name, vals in original_story_data.items():
+        if name in data:
+            data[name]["Height"] = vals["Height"]
+            data[name]["Elevation"] = vals["Elevation"]
+
     return data
 
 
