@@ -335,7 +335,7 @@ def _build_project_response(project):
             q_val = sections.get("3.4", {}).get("q", 2.76)
             sections["4.4"] = calculate_section_4_4(project, ext_data, q=q_val)
             sections["4.5"] = calculate_section_4_5(project, ext_data)
-            sections["4.6"] = calculate_section_4_6(project, sections.get("4.1", {}), ext_data)
+            sections["4.6"] = calculate_section_4_6(project, sections.get("4.1", {}), ext_data, q=q_val)
         except Exception as e:
             print(f"Section calc error: {e}")
     
