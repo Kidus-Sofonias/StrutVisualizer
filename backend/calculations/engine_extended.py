@@ -342,23 +342,24 @@ def calculate_section_4_3(project: Project, ext_data: Dict) -> Dict:
 def calculate_section_4_4(project: Project, ext_data: Dict, q: float = 2.76) -> Dict:
     """
     4.4 — Stability Analysis (P-Delta).
-    θ = ΣPu × Δui / (Hu × hi)
+    θ = ΣPu × Δu / (Hu × hs)
     
-    Per Eurocode 8 §3.1.12: Δui is the INELASTIC drift,
-    estimated via equal displacement rule: Δui = q × Δu_design
+    The original Excel workbook uses:
+    - Ptot from SESMASSX (Column + Pier axial loads)
+    - Hu from CORSX1/CORSY1 story shears (Bottom location)
+    - Δu = CORSX1DL drift ratio × storey height (from Diaphragm Drifts table)
+      NOTE: The Excel uses CORSX1DL DriftX for BOTH X and Y directions.
     
-    Uses:
-    - Ptot from SESMASSX + SESMASSY (Column + Pier axial loads)
-    - Hu from CORSX1/CORSY1 story shears
-    - Δu from CORSX1/CORSY1 diaphragm displacements (inter-storey drift)
-    - q from behavioral factor (Section 3.4)
+    The drift ratios from the Diaphragm Drifts table already account for
+    inelastic effects at the damage limitation level.
     """
     storeys = project.get_storeys_sorted()
     
-    cors_disp = ext_data.get("cors_displacements", {})
     cors_shears = ext_data.get("cors_shears", {})
     axial = ext_data.get("axial_loads", {})
     sesmassx = axial.get("SESMASSX", {})
+    drift_ratios = ext_data.get("drift_ratios", {})
+    corsx1dl = drift_ratios.get("CORSX1DL", {})
     
     results = []
     max_theta_x = 0
@@ -376,34 +377,21 @@ def calculate_section_4_4(project: Project, ext_data: Dict, q: float = 2.76) -> 
         height = storey.source_data.height or 3.2
         ptot = sesmassx.get(name, 0)
         
+        # Get CORSX1DL drift ratio for this storey
+        drift_data = corsx1dl.get(name, {})
+        drift_ratio = drift_data.get("DriftX", 0)
+        delta_u = abs(drift_ratio * height) if drift_ratio else 0
+        
         for load_case, group, direction in load_cases:
-            disp = cors_disp.get(load_case, {}).get(name, {})
             shear_data = cors_shears.get(load_case, {}).get(name, {})
             
             if direction == "x":
-                ux_here = abs(disp.get("UX", 0))
                 hu = abs(shear_data.get("VX", 0))
             else:
-                ux_here = abs(disp.get("UY", 0))
                 hu = abs(shear_data.get("VY", 0))
             
-            # Inter-storey drift
-            if i < len(storeys) - 1:
-                next_name = storeys[i + 1].normalized_name
-                next_disp = cors_disp.get(load_case, {}).get(next_name, {})
-                if direction == "x":
-                    ux_below = abs(next_disp.get("UX", 0))
-                else:
-                    ux_below = abs(next_disp.get("UY", 0))
-                delta_u = abs(ux_here - ux_below)
-            else:
-                delta_u = ux_here
-            
-            # Apply inelastic drift: Δui = q × Δu_design (EC8 §3.1.12)
-            delta_u_inelastic = q * delta_u
-            
             if hu > 0 and height > 0:
-                theta = abs(ptot * delta_u_inelastic) / (hu * height)
+                theta = abs(ptot * delta_u) / (hu * height)
             else:
                 theta = 0
             

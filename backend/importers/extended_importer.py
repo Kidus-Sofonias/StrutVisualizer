@@ -50,6 +50,9 @@ def import_extended_data(file_path: str) -> Dict:
     # 7. Total storey shears for EQX/EQY (for 4.6 overturning)
     data["eqx_shears"] = _parse_eqx_shears(parser)
 
+    # 8. Diaphragm drift ratios from Diaphragm Drifts table (for 4.4 stability)
+    data["drift_ratios"] = _parse_drift_ratios(parser)
+
     # Convert defaultdicts to regular dicts for pickling
     for key in data:
         if isinstance(data[key], dict):
@@ -359,6 +362,52 @@ def _parse_eqx_shears(parser) -> Dict:
             "VX": vx[i] if i < len(vx) else 0,
             "VY": vy[i] if i < len(vy) else 0,
         }
+
+    return result
+
+
+def _parse_drift_ratios(parser) -> Dict:
+    """Parse inter-storey drift ratios from Diaphragm Drifts table.
+    The original Excel 4.4 uses CORSX1DL drift ratios × height for dr,
+    NOT the CM displacement differences.
+    """
+    try:
+        table = parser.parse_table("Diaphragm Drifts")
+        if not table:
+            return {}
+    except Exception:
+        return {}
+
+    stories = table.get("Story", [])
+    loads = table.get("Load", [])
+    items = table.get("Item", [])
+    drift_x = table.get("DriftX", [])
+    drift_y = table.get("DriftY", [])
+
+    # Target: CORSX1DL for X drift, CORSY1DL for Y drift
+    # The Excel uses CORSX1DL DriftX for BOTH X and Y directions
+    result = {}
+
+    for i in range(len(stories)):
+        load = loads[i] if i < len(loads) else None
+        item = items[i] if i < len(items) else ""
+        story = stories[i] if i < len(stories) else None
+        if not story:
+            continue
+
+        if load == "CORSX1DL" and "X" in str(item):
+            dx = drift_x[i] if i < len(drift_x) else None
+            if dx is not None:
+                if "CORSX1DL" not in result:
+                    result["CORSX1DL"] = {}
+                result["CORSX1DL"][story] = {"DriftX": dx}
+
+        if load == "CORSY1DL" and "Y" in str(item):
+            dy = drift_y[i] if i < len(drift_y) else None
+            if dy is not None:
+                if "CORSY1DL" not in result:
+                    result["CORSY1DL"] = {}
+                result["CORSY1DL"][story] = {"DriftY": dy}
 
     return result
 
