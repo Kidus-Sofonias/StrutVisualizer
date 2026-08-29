@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { CheckCircle2, XCircle, AlertTriangle, BookOpen, Calculator, ChevronDown, ChevronRight } from 'lucide-react'
+import { CheckCircle2, XCircle, AlertTriangle, BookOpen, Calculator, ChevronDown, ChevronRight, Pencil } from 'lucide-react'
 import { Line, Bar } from 'react-chartjs-2'
 import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement,
@@ -7,10 +7,7 @@ import {
 } from 'chart.js'
 import { useState } from 'react'
 import { engineeringText } from '../data/engineeringText'
-import {
-  COLORS, forceDistributionChart, modalParticipationChart,
-  imperfectionForcesChart, overturningChart, chartCardStyle,
-} from '../config/chartConfig'
+import { displacementXBarChart, displacementYBarChart } from '../config/chartConfig'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, Filler)
 
@@ -62,8 +59,13 @@ const sectionMeta = {
 function SectionHeader({ meta }) {
   return (
     <div style={{ marginBottom: 24 }}>
-      <h2 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{meta.title}</h2>
-      <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>{meta.description}</p>
+      <h2 style={{
+        fontSize: 20, fontWeight: 700, marginBottom: 4,
+        letterSpacing: '-0.02em', color: 'var(--text-primary)',
+      }}>
+        {meta.title}
+      </h2>
+      <p style={{ color: 'var(--text-tertiary)', fontSize: 13 }}>{meta.description}</p>
     </div>
   )
 }
@@ -83,68 +85,186 @@ function InfoCard({ label, value, unit = '' }) {
 function StatusBadge({ status }) {
   const s = String(status || '').toUpperCase()
   if (s === 'OK' || s === 'PASS' || s === 'NO SWAY') {
-    return <span style={{ color: 'var(--pass)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}><CheckCircle2 size={14} /> {status}</span>
+    return <span className="status-badge pass" style={{ display: 'inline-flex' }}><CheckCircle2 size={13} /> {status}</span>
   }
   if (s === 'NOT OK' || s === 'FAIL' || s === 'SWAY') {
-    return <span style={{ color: 'var(--fail)', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}><XCircle size={14} /> {status}</span>
+    return <span className="status-badge fail" style={{ display: 'inline-flex' }}><XCircle size={13} /> {status}</span>
   }
-  return <span style={{ color: 'var(--text-muted)' }}>{status || '—'}</span>
+  return <span style={{ color: 'var(--text-tertiary)', fontWeight: 500 }}>{status || '—'}</span>
 }
 
-function EngineeringText({ sectionKey, subKey }) {
-  const data = engineeringText[sectionKey]
-  if (!data) return null
-  const sub = subKey ? data.subsections?.[subKey] : data
-  if (!sub) return null
-
+/* ── Editable Formula Block (used in all sections) ────────────────────── */
+function FormulaBlock({ sectionKey }) {
   const [expanded, setExpanded] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [customFormula, setCustomFormula] = useState('')
+  const et = engineeringText[sectionKey]
+  if (!et || !et.formula) return null
+
+  const handleSave = () => {
+    const stored = JSON.parse(localStorage.getItem('custom_formulas') || '{}')
+    stored[sectionKey] = customFormula
+    localStorage.setItem('custom_formulas', JSON.stringify(stored))
+    setEditing(false)
+  }
+
+  const storedFormulas = JSON.parse(localStorage.getItem('custom_formulas') || '{}')
+  const displayFormula = storedFormulas[sectionKey] || et.formula
 
   return (
-    <div className="engineering-text" style={{
-      background: 'var(--bg-secondary)', borderRadius: 8, padding: '16px 20px',
-      marginBottom: 20, border: '1px solid var(--border)',
-    }}>
+    <>
       <div
         onClick={() => setExpanded(!expanded)}
-        style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, userSelect: 'none' }}
+        style={{
+          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8,
+          userSelect: 'none', padding: '8px 12px',
+          borderRadius: 'var(--radius-sm)',
+          border: '1px solid var(--border-primary)',
+          background: 'var(--bg-subtle)', marginBottom: 8,
+        }}
       >
-        <BookOpen size={16} style={{ color: 'var(--accent)' }} />
-        <span style={{ fontWeight: 600, fontSize: 13, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        <Calculator size={13} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+        <span style={{
+          fontWeight: 600, fontSize: 11, color: 'var(--accent)',
+          textTransform: 'uppercase', letterSpacing: '0.04em', flex: 1,
+        }}>
+          Formula
+        </span>
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            setEditing(!editing)
+            setCustomFormula(displayFormula)
+          }}
+          style={{
+            background: 'none', border: '1px solid var(--border-primary)',
+            borderRadius: 4, padding: '2px 6px', cursor: 'pointer',
+            color: 'var(--text-tertiary)', fontSize: 10,
+            display: 'flex', alignItems: 'center', gap: 3,
+          }}
+          title="Edit formula"
+        >
+          <Pencil size={10} /> Edit
+        </button>
+        <span style={{ color: 'var(--text-tertiary)' }}>
+          {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+        </span>
+      </div>
+      {expanded && (
+        <div style={{
+          padding: '8px 12px', marginBottom: 14,
+          fontFamily: "'JetBrains Mono', monospace", fontSize: 11,
+          whiteSpace: 'pre-wrap', borderLeft: '3px solid var(--accent)',
+          color: 'var(--text-primary)', lineHeight: 1.8,
+          background: 'var(--bg-surface)', borderRadius: '0 var(--radius-sm) var(--radius-sm) 0',
+        }}>
+          {displayFormula}
+        </div>
+      )}
+      {editing && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.5)', display: 'flex',
+          alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+        }} onClick={() => setEditing(false)}>
+          <div
+            style={{
+              background: 'var(--bg-surface)', borderRadius: 'var(--radius-lg)',
+              padding: 24, width: 500, maxHeight: '80vh',
+              boxShadow: 'var(--shadow-lg)', border: '1px solid var(--border-primary)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
+              Edit Formula
+            </h3>
+            <p style={{ fontSize: 12, color: 'var(--text-tertiary)', marginBottom: 12 }}>
+              Enter the formula using mathematical notation or Excel-style format.
+            </p>
+            <textarea
+              value={customFormula}
+              onChange={(e) => setCustomFormula(e.target.value)}
+              style={{
+                width: '100%', minHeight: 120, padding: 12,
+                fontFamily: "'JetBrains Mono', monospace", fontSize: 12,
+                border: '1px solid var(--border-primary)',
+                borderRadius: 'var(--radius-sm)', background: 'var(--bg-subtle)',
+                color: 'var(--text-primary)', resize: 'vertical',
+                lineHeight: 1.8,
+              }}
+            />
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
+              <button
+                onClick={() => setEditing(false)}
+                style={{
+                  padding: '6px 16px', borderRadius: 'var(--radius-sm)',
+                  border: '1px solid var(--border-primary)', background: 'var(--bg-subtle)',
+                  cursor: 'pointer', fontSize: 12, fontWeight: 500,
+                  color: 'var(--text-secondary)',
+                }}
+              >Cancel</button>
+              <button
+                onClick={handleSave}
+                style={{
+                  padding: '6px 16px', borderRadius: 'var(--radius-sm)',
+                  border: 'none', background: 'var(--accent)', color: 'white',
+                  cursor: 'pointer', fontSize: 12, fontWeight: 500,
+                }}
+              >Save Formula</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+
+/* ── Engineering Text (expandable dropdown) ───────────────────────────── */
+function EngineeringText({ sectionKey }) {
+  const [expanded, setExpanded] = useState(false)
+  const data = engineeringText[sectionKey]
+  if (!data) return null
+
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div
+        onClick={() => setExpanded(!expanded)}
+        style={{
+          cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10,
+          userSelect: 'none', padding: '12px 16px',
+          borderRadius: 'var(--radius-sm)',
+          border: '1px solid var(--border-primary)',
+          background: 'var(--bg-subtle)',
+        }}
+      >
+        <BookOpen size={14} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+        <span style={{
+          fontWeight: 600, fontSize: 11, color: 'var(--accent)',
+          textTransform: 'uppercase', letterSpacing: '0.04em', flex: 1,
+        }}>
           Engineering Background & Criteria
         </span>
-        <span style={{ marginLeft: 'auto', color: 'var(--text-muted)' }}>
-          {expanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+        <span style={{ color: 'var(--text-tertiary)' }}>
+          {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
         </span>
       </div>
       {expanded && (
         <motion.div
           initial={{ opacity: 0, height: 0 }}
           animate={{ opacity: 1, height: 'auto' }}
-          style={{ marginTop: 12, fontSize: 13, lineHeight: 1.7, color: 'var(--text)' }}
+          style={{ padding: '12px 16px', fontSize: 13, lineHeight: 1.8, color: 'var(--text-secondary)' }}
         >
-          {sub.background && (
+          {data.background && (
             <div style={{ marginBottom: 12 }}>
-              {sub.background.split('\n').map((p, i) => (
-                <p key={i} style={{ margin: '0 0 8px 0', whiteSpace: 'pre-wrap' }}>{p}</p>
+              {data.background.split('\n').map((p, i) => (
+                <p key={i} style={{ margin: '0 0 6px 0', whiteSpace: 'pre-wrap' }}>{p}</p>
               ))}
             </div>
           )}
-          {sub.formula && (
-            <div style={{
-              background: 'var(--bg-primary)', borderRadius: 6, padding: '10px 14px',
-              fontFamily: 'monospace', fontSize: 12, marginBottom: 12,
-              borderLeft: '3px solid var(--accent)', whiteSpace: 'pre-wrap',
-            }}>
-              <div style={{ fontSize: 11, color: 'var(--accent)', marginBottom: 4, fontFamily: 'sans-serif', fontWeight: 600 }}>
-                <Calculator size={12} style={{ display: 'inline', verticalAlign: -2 }} /> Formula:
-              </div>
-              {sub.formula}
-            </div>
-          )}
-          {sub.criteria && (
-            <div style={{ fontSize: 13, lineHeight: 1.7 }}>
-              {sub.criteria.split('\n').map((p, i) => (
-                <p key={i} style={{ margin: '0 0 6px 0', whiteSpace: 'pre-wrap' }}>{p}</p>
+          {data.criteria && (
+            <div style={{ marginTop: 8, fontSize: 12.5 }}>
+              {data.criteria.split('\n').map((p, i) => (
+                <p key={i} style={{ margin: '0 0 4px 0', whiteSpace: 'pre-wrap' }}>{p}</p>
               ))}
             </div>
           )}
@@ -154,20 +274,9 @@ function EngineeringText({ sectionKey, subKey }) {
   )
 }
 
-function ChartCard({ title, children }) {
+function DataTable({ headers, rows }) {
   return (
-    <div style={chartCardStyle}>
-      {title && <h4 style={{ fontSize: 13, color: 'var(--accent)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 0.5 }}>{title}</h4>}
-      <div style={{ position: 'relative', height: 300 }}>
-        {children}
-      </div>
-    </div>
-  )
-}
-
-function DataTable({ headers, rows, onRowClick }) {
-  return (
-    <div style={{ overflowX: 'auto' }}>
+    <div style={{ overflowX: 'auto', borderRadius: 'var(--radius-lg)' }}>
       <table className="calc-table">
         <thead>
           <tr>
@@ -176,10 +285,10 @@ function DataTable({ headers, rows, onRowClick }) {
         </thead>
         <tbody>
           {rows.map((row, ri) => (
-            <tr key={ri} onClick={onRowClick} style={onRowClick ? { cursor: 'pointer' } : {}}>
+            <tr key={ri}>
               {row.map((cell, ci) => {
-                if (typeof cell === 'object' && cell !== null) {
-                  const style = cell.highlight ? { color: 'var(--cyan)', fontWeight: 600 } : {}
+                if (typeof cell === 'object' && cell !== null && !Array.isArray(cell)) {
+                  const style = cell.highlight ? { color: 'var(--accent)', fontWeight: 600 } : {}
                   if (cell.status) {
                     return <td key={ci} style={style}><StatusBadge status={cell.text} /></td>
                   }
@@ -195,20 +304,16 @@ function DataTable({ headers, rows, onRowClick }) {
   )
 }
 
-/* ── Chart colors alias (from shared config) ─────────────────────── */
-const chartColors = COLORS
-
 /* ── Section 3.3 ──────────────────────────────────────────────────────── */
 function Section33({ data }) {
   if (!data) return <EmptySection />
-  const et = engineeringText['3.3']
-
   return (
     <div>
       <SectionHeader meta={sectionMeta['3.3']} />
+      <FormulaBlock sectionKey="3.3" />
       <EngineeringText sectionKey="3.3" />
 
-      <div className="data-grid" style={{ marginBottom: 24 }}>
+      <div className="data-grid" style={{ marginBottom: 20 }}>
         <InfoCard label="Building Classification" value={data.building_classification} />
         <InfoCard label="X Col %" value={data.x_direction?.column_pct ? (data.x_direction.column_pct * 100).toFixed(1) + '%' : '—'} />
         <InfoCard label="X Wall %" value={data.x_direction?.wall_pct ? (data.x_direction.wall_pct * 100).toFixed(1) + '%' : '—'} />
@@ -216,9 +321,11 @@ function Section33({ data }) {
         <InfoCard label="Y Wall %" value={data.y_direction?.wall_pct ? (data.y_direction.wall_pct * 100).toFixed(1) + '%' : '—'} />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
         <div>
-          <h4 style={{ fontSize: 13, color: 'var(--accent)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>X-Direction (UL1)</h4>
+          <h4 style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+            X-Direction (UL1)
+          </h4>
           <DataTable
             headers={['Story', 'Lateral (kN)', 'Column', 'Wall', 'Col %', 'Wall %']}
             rows={(data.x_direction?.storeys || []).map(s => [
@@ -230,12 +337,11 @@ function Section33({ data }) {
               (s.wall_pct * 100).toFixed(1) + '%',
             ])}
           />
-          <ChartCard>
-            <Bar {...forceDistributionChart(data.x_direction?.storeys || [], 'x')} />
-          </ChartCard>
         </div>
         <div>
-          <h4 style={{ fontSize: 13, color: 'var(--accent)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Y-Direction (UL2)</h4>
+          <h4 style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+            Y-Direction (UL2)
+          </h4>
           <DataTable
             headers={['Story', 'Lateral (kN)', 'Column', 'Wall', 'Col %', 'Wall %']}
             rows={(data.y_direction?.storeys || []).map(s => [
@@ -247,9 +353,6 @@ function Section33({ data }) {
               (s.wall_pct * 100).toFixed(1) + '%',
             ])}
           />
-          <ChartCard>
-            <Bar {...forceDistributionChart(data.y_direction?.storeys || [], 'y')} />
-          </ChartCard>
         </div>
       </div>
     </div>
@@ -262,9 +365,10 @@ function Section34({ data }) {
   return (
     <div>
       <SectionHeader meta={sectionMeta['3.4']} />
+      <FormulaBlock sectionKey="3.4" />
       <EngineeringText sectionKey="3.4" />
 
-      <div className="data-grid" style={{ marginBottom: 24 }}>
+      <div className="data-grid" style={{ marginBottom: 20 }}>
         <InfoCard label="Building Type" value={data.building_type} />
         <InfoCard label="q₀" value={data.qo} />
         <InfoCard label="kw" value={data.kw} />
@@ -290,9 +394,10 @@ function Section41({ data }) {
   return (
     <div>
       <SectionHeader meta={sectionMeta['4.1']} />
+      <FormulaBlock sectionKey="4.1" />
       <EngineeringText sectionKey="4.1" />
 
-      <div className="data-grid" style={{ marginBottom: 24 }}>
+      <div className="data-grid" style={{ marginBottom: 20 }}>
         <InfoCard label="ag" value={data.ag} unit="g" />
         <InfoCard label="Ground Type" value={data.ground_type} />
         <InfoCard label="S" value={data.S} />
@@ -303,7 +408,7 @@ function Section41({ data }) {
         <InfoCard label="q" value={data.q} />
       </div>
 
-      <div className="data-grid" style={{ marginBottom: 24 }}>
+      <div className="data-grid" style={{ marginBottom: 20 }}>
         <InfoCard label="T1x" value={data.T1x?.toFixed(3)} unit="s" />
         <InfoCard label="T1y" value={data.T1y?.toFixed(3)} unit="s" />
         <InfoCard label="Sd(T)x" value={data.Sd_x_pct?.toFixed(1)} unit="%" />
@@ -312,7 +417,7 @@ function Section41({ data }) {
         <InfoCard label="λ" value={data.lambda} />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <div className="formula-box">
           <div className="formula" style={{ color: 'var(--cyan)' }}>X-Direction</div>
           <div className="description">
@@ -343,9 +448,10 @@ function Section42({ data }) {
   return (
     <div>
       <SectionHeader meta={sectionMeta['4.2']} />
+      <FormulaBlock sectionKey="4.2" />
       <EngineeringText sectionKey="4.2" />
 
-      <div className="data-grid" style={{ marginBottom: 24 }}>
+      <div className="data-grid" style={{ marginBottom: 20 }}>
         <InfoCard label="Total Modes" value={data.total_modes} />
         <InfoCard label="T1x" value={data.T1x?.toFixed(3)} unit="s" />
         <InfoCard label="T1y" value={data.T1y?.toFixed(3)} unit="s" />
@@ -365,10 +471,6 @@ function Section42({ data }) {
           m.sum_uy?.toFixed(2),
         ])}
       />
-
-      <ChartCard>
-        <Line {...modalParticipationChart(top10)} />
-      </ChartCard>
     </div>
   )
 }
@@ -379,15 +481,16 @@ function Section43({ data }) {
   return (
     <div>
       <SectionHeader meta={sectionMeta['4.3']} />
+      <FormulaBlock sectionKey="4.3" />
       <EngineeringText sectionKey="4.3" />
 
-      <div className="data-grid" style={{ marginBottom: 24 }}>
+      <div className="data-grid" style={{ marginBottom: 20 }}>
         <InfoCard label="θ₀" value={data.theta0} />
         <InfoCard label="αh" value={data.alpha_h} />
         <InfoCard label="αm" value={data.alpha_m} />
         <InfoCard label="θi" value={data.theta_i} />
       </div>
-      <div className="formula-box" style={{ marginBottom: 24 }}>
+      <div className="formula-box" style={{ marginBottom: 20 }}>
         <div className="formula">θi = θ₀ × αh × αm = {data.description || `${data.theta0} × ${data.alpha_h} × ${data.alpha_m} = ${data.theta_i}`}</div>
       </div>
       <DataTable
@@ -400,10 +503,6 @@ function Section43({ data }) {
           { text: s.hi?.toFixed(2), highlight: true },
         ])}
       />
-
-      <ChartCard>
-        <Bar {...imperfectionForcesChart(data.storeys || [])} />
-      </ChartCard>
     </div>
   )
 }
@@ -414,20 +513,21 @@ function Section44({ data }) {
   return (
     <div>
       <SectionHeader meta={sectionMeta['4.4']} />
+      <FormulaBlock sectionKey="4.4" />
       <EngineeringText sectionKey="4.4" />
 
-      <div className="data-grid" style={{ marginBottom: 24 }}>
+      <div className="data-grid" style={{ marginBottom: 20 }}>
         <InfoCard label="Max θ (X)" value={data.max_theta_x?.toFixed(4)} />
         <InfoCard label="Max θ (Y)" value={data.max_theta_y?.toFixed(4)} />
         <InfoCard label="X Status" value="" />
         <InfoCard label="Y Status" value="" />
       </div>
-      <div style={{ marginBottom: 24, display: 'flex', gap: 24 }}>
+      <div style={{ marginBottom: 20, display: 'flex', gap: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span>X:</span> <StatusBadge status={data.max_classification_x} />
+          <span style={{ fontWeight: 500 }}>X:</span> <StatusBadge status={data.max_classification_x} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span>Y:</span> <StatusBadge status={data.max_classification_y} />
+          <span style={{ fontWeight: 500 }}>Y:</span> <StatusBadge status={data.max_classification_y} />
         </div>
       </div>
       <DataTable
@@ -454,9 +554,10 @@ function Section45({ data }) {
   return (
     <div>
       <SectionHeader meta={sectionMeta['4.5']} />
+      <FormulaBlock sectionKey="4.5" />
       <EngineeringText sectionKey="4.5" />
 
-      <div className="data-grid" style={{ marginBottom: 24 }}>
+      <div className="data-grid" style={{ marginBottom: 20 }}>
         <InfoCard label="ν" value={data.nu} />
         <InfoCard label="Limit" value={data.limit} />
         <InfoCard label="Max Ratio (X)" value={data.max_ratio_x?.toFixed(6)} />
@@ -487,21 +588,22 @@ function Section46({ data }) {
   return (
     <div>
       <SectionHeader meta={sectionMeta['4.6']} />
+      <FormulaBlock sectionKey="4.6" />
       <EngineeringText sectionKey="4.6" />
 
-      <div className="data-grid" style={{ marginBottom: 24 }}>
+      <div className="data-grid" style={{ marginBottom: 20 }}>
         <InfoCard label="Total Weight" value={data.total_weight_kN?.toFixed(0)} unit="kN" />
         <InfoCard label="Ground Xcm" value={data.ground_xcm?.toFixed(3)} unit="m" />
         <InfoCard label="Ground Ycm" value={data.ground_ycm?.toFixed(3)} unit="m" />
         <InfoCard label="Required SF" value={data.required_sf} />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
         <div className="formula-box">
           <div className="formula" style={{ color: 'var(--cyan)' }}>X-Direction</div>
           <div className="description">
             Overturning: {data.x_direction?.total_ot_moment?.toFixed(0)} kN·m<br />
             Resisting: {data.x_direction?.resisting_moment?.toFixed(0)} kN·m<br />
-            <strong>Safety Factor: {data.x_direction?.safety_factor?.toFixed(2)}</strong>
+            <strong style={{ color: 'var(--text-primary)' }}>Safety Factor: {data.x_direction?.safety_factor?.toFixed(2)}</strong>
           </div>
           <div style={{ marginTop: 8 }}><StatusBadge status={data.x_direction?.passes ? 'PASS' : 'FAIL'} /></div>
         </div>
@@ -510,15 +612,17 @@ function Section46({ data }) {
           <div className="description">
             Overturning: {data.y_direction?.total_ot_moment?.toFixed(0)} kN·m<br />
             Resisting: {data.y_direction?.resisting_moment?.toFixed(0)} kN·m<br />
-            <strong>Safety Factor: {data.y_direction?.safety_factor?.toFixed(2)}</strong>
+            <strong style={{ color: 'var(--text-primary)' }}>Safety Factor: {data.y_direction?.safety_factor?.toFixed(2)}</strong>
           </div>
           <div style={{ marginTop: 8 }}><StatusBadge status={data.y_direction?.passes ? 'PASS' : 'FAIL'} /></div>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
         <div>
-          <h4 style={{ fontSize: 13, color: 'var(--accent)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>X-Direction Storeys</h4>
+          <h4 style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+            X-Direction Storeys
+          </h4>
           <DataTable
             headers={['Story', 'Elevation (m)', 'Shear (kN)', 'OT Moment (kN·m)']}
             rows={(data.x_direction?.storeys || []).map(s => [
@@ -530,7 +634,9 @@ function Section46({ data }) {
           />
         </div>
         <div>
-          <h4 style={{ fontSize: 13, color: 'var(--accent)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: 1 }}>Y-Direction Storeys</h4>
+          <h4 style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
+            Y-Direction Storeys
+          </h4>
           <DataTable
             headers={['Story', 'Elevation (m)', 'Shear (kN)', 'OT Moment (kN·m)']}
             rows={(data.y_direction?.storeys || []).map(s => [
@@ -542,10 +648,6 @@ function Section46({ data }) {
           />
         </div>
       </div>
-
-      <ChartCard>
-        <Bar {...overturningChart(data.x_direction || {}, data.y_direction || {})} />
-      </ChartCard>
     </div>
   )
 }
@@ -554,7 +656,7 @@ function Section46({ data }) {
 function EmptySection() {
   return (
     <div className="empty-state" style={{ height: '40vh' }}>
-      <AlertTriangle size={48} strokeWidth={1} />
+      <AlertTriangle size={48} strokeWidth={1.2} />
       <h2>No Data Available</h2>
       <p>This section requires extended data import. Make sure the Access database contains the necessary tables.</p>
     </div>
@@ -565,7 +667,7 @@ function EmptySection() {
 export default function SectionView({ section, project }) {
   const data = project?.sections?.[section]
 
-  const fade = { initial: { opacity: 0, y: 20 }, animate: { opacity: 1, y: 0 } }
+  const fade = { initial: { opacity: 0, y: 16 }, animate: { opacity: 1, y: 0 } }
 
   return (
     <motion.div {...fade} key={section}>

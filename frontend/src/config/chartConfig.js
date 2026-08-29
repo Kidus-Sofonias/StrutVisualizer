@@ -1,341 +1,144 @@
 /**
- * Shared chart configuration for all engineering charts.
- * Provides consistent styling, tooltips with units, and responsive design.
+ * Chart configuration matching the EXACT charts from the Excel workbook.
+ * 
+ * The Excel workbook has exactly 4 charts, all in Section 3.2:
+ * 1. Line chart: Stiffness X axis (kN/m) — blue with diamond markers
+ * 2. Line chart: Stiffness Y axis (kN/m) — red with diamond markers
+ * 3. Horizontal grouped bar: Elastic vs Design displacement X-Direction
+ * 4. Horizontal grouped bar: Elastic vs Design displacement Y-Direction
  */
 
-// ── Color Palette ──────────────────────────────────────────────────────
+// ── Color Palette (matching Excel styling) ─────────────────────────────
 export const COLORS = {
-  // Primary series
-  cyan: 'rgba(0, 188, 212, 1)',
-  cyanLight: 'rgba(0, 188, 212, 0.15)',
-  cyanMedium: 'rgba(0, 188, 212, 0.4)',
-
-  orange: 'rgba(255, 152, 0, 1)',
-  orangeLight: 'rgba(255, 152, 0, 0.15)',
-  orangeMedium: 'rgba(255, 152, 0, 0.4)',
+  // Excel chart colors
+  stiffnessX: '#4472C4',       // Blue (Excel default series 1)
+  stiffnessY: '#ED7D31',       // Red/Orange (Excel default series 2)
+  elasticDisp: '#C00000',      // Dark red (Excel elastic)
+  designDisp: '#4472C4',       // Blue (Excel design)
 
   // Status colors
-  pass: 'rgba(76, 175, 80, 0.8)',
-  passLight: 'rgba(76, 175, 80, 0.15)',
-  fail: 'rgba(244, 67, 54, 0.8)',
-  failLight: 'rgba(244, 67, 54, 0.15)',
-
-  // Additional series
-  purple: 'rgba(156, 39, 176, 1)',
-  purpleLight: 'rgba(156, 39, 176, 0.15)',
-  green: 'rgba(76, 175, 80, 1)',
-  red: 'rgba(244, 67, 54, 1)',
+  pass: '#059669',
+  fail: '#DC2626',
 
   // Neutral
-  gridLine: 'rgba(148, 163, 184, 0.15)',
-  axisLabel: 'rgba(148, 163, 184, 0.8)',
-  tooltipBg: 'rgba(15, 23, 42, 0.95)',
-  tooltipBorder: 'rgba(148, 163, 184, 0.3)',
+  gridLine: 'rgba(0, 0, 0, 0.06)',
+  axisLabel: '#333333',
+  axisLine: '#999999',
+  tooltipBg: 'rgba(255, 255, 255, 0.96)',
+  tooltipBorder: '#CCCCCC',
+  titleColor: '#333333',
 }
 
-// ── Unit Labels ────────────────────────────────────────────────────────
-export const UNITS = {
-  length: 'm',
-  force: 'kN',
-  stiffness: 'kN/m',
-  mass: '×10³ kg',
-  moment: 'kN·m',
-  percent: '%',
-  angle: 'rad',
-  time: 's',
-  drift: 'm/m',
-}
-
-// ── Tooltip Formatter ──────────────────────────────────────────────────
-function tooltipFormatter(unit) {
-  return function(context) {
-    let label = context.dataset.label || ''
-    let value = context.parsed.y ?? context.parsed.x
-    if (value === null || value === undefined) return ''
-    if (typeof value === 'number') {
-      value = Math.abs(value) >= 100 ? value.toFixed(0) :
-              Math.abs(value) >= 1 ? value.toFixed(2) :
-              value.toFixed(4)
-    }
-    return `${label}: ${value} ${unit || ''}`
-  }
-}
-
-// ── Base Chart Options ─────────────────────────────────────────────────
-function getBaseOptions(unit = '') {
+// ── Base Options matching Excel chart style ────────────────────────────
+function getBaseOptions() {
   return {
     responsive: true,
     maintainAspectRatio: false,
-    animation: {
-      duration: 600,
-      easing: 'easeOutQuart',
-    },
+    animation: { duration: 400 },
     plugins: {
       legend: {
+        display: true,
+        position: 'bottom',
         labels: {
-          color: COLORS.axisLabel,
-          font: { size: 11, family: "'Inter', sans-serif" },
+          color: '#333333',
+          font: { size: 11, family: "'Segoe UI', Arial, sans-serif" },
           usePointStyle: true,
-          pointStyle: 'circle',
+          pointStyle: 'line',
           padding: 16,
+          boxWidth: 20,
+          boxHeight: 2,
         },
       },
       tooltip: {
-        backgroundColor: COLORS.tooltipBg,
-        titleColor: '#fff',
-        bodyColor: 'rgba(255,255,255,0.9)',
-        borderColor: COLORS.tooltipBorder,
+        backgroundColor: 'rgba(255,255,255,0.96)',
+        titleColor: '#333',
+        bodyColor: '#333',
+        borderColor: '#CCC',
         borderWidth: 1,
-        cornerRadius: 6,
-        padding: { top: 8, bottom: 8, left: 12, right: 12 },
-        titleFont: { size: 12, weight: 600 },
+        cornerRadius: 4,
+        padding: 10,
+        titleFont: { size: 12, weight: '600' },
         bodyFont: { size: 11 },
-        callbacks: {
-          label: tooltipFormatter(unit),
-        },
       },
     },
     scales: {
       x: {
         ticks: {
-          color: COLORS.axisLabel,
-          font: { size: 10, family: "'Inter', sans-serif" },
-          maxRotation: 45,
-          minRotation: 0,
+          color: '#333333',
+          font: { size: 10, family: "'Segoe UI', Arial, sans-serif" },
+          maxRotation: 0,
         },
-        grid: { color: COLORS.gridLine, drawBorder: false },
+        grid: { color: 'rgba(0,0,0,0.04)', drawBorder: false },
+        border: { color: '#999999' },
       },
       y: {
         ticks: {
-          color: COLORS.axisLabel,
-          font: { size: 10, family: "'Inter', sans-serif" },
+          color: '#333333',
+          font: { size: 10, family: "'Segoe UI', Arial, sans-serif" },
         },
-        grid: { color: COLORS.gridLine, drawBorder: false },
+        grid: { color: 'rgba(0,0,0,0.04)', drawBorder: false },
+        border: { color: '#999999' },
       },
     },
   }
 }
 
-// ── Exported Chart Configs ─────────────────────────────────────────────
-
 /**
- * Stiffness distribution bar chart (horizontal)
- * Red bars for NOT OK storeys, cyan/orange for OK
+ * Chart 1: Stiffness X axis (kN/m) — LINE chart with markers
+ * Matches Excel: blue line, diamond markers, ROOF FL to 1ST FL on x-axis
  */
-export function stiffnessChart(storeys, direction = 'x') {
-  const key = direction === 'x' ? 'kx' : 'ky'
-  const statusKey = direction === 'x' ? 'module_3_2_6_status' : 'module_3_2_7_status'
-  const color = direction === 'x' ? COLORS.cyan : COLORS.orange
+export function stiffnessXLineChart(storeys) {
+  // Filter to storeys that appear in Excel: ROOF FL through 1ST FL only
+  const filtered = storeys.filter(s => {
+    const n = s.name?.toUpperCase() || ''
+    return !n.includes('UP ROOF') && !n.includes('BASE')
+  })
 
   return {
     data: {
-      labels: storeys.map(s => s.name),
+      labels: filtered.map(s => s.name),
       datasets: [{
-        label: `K${direction} (kN/m)`,
-        data: storeys.map(s => s[key]),
-        backgroundColor: storeys.map(s =>
-          s[statusKey] === 'NOT OK' ? COLORS.fail : color
-        ),
-        borderRadius: 3,
-        barThickness: 16,
+        label: 'Stiffness X axis (kN/m)',
+        data: filtered.map(s => s.kx),
+        borderColor: COLORS.stiffnessX,
+        backgroundColor: COLORS.stiffnessX,
+        fill: false,
+        tension: 0.3,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        borderWidth: 2.5,
+        pointStyle: 'rectRot', // diamond shape like Excel
+        pointBackgroundColor: COLORS.stiffnessX,
+        pointBorderColor: COLORS.stiffnessX,
       }],
     },
     options: {
-      ...getBaseOptions(UNITS.stiffness),
-      indexAxis: 'y',
+      ...getBaseOptions(),
       plugins: {
-        ...getBaseOptions(UNITS.stiffness).plugins,
+        ...getBaseOptions().plugins,
         title: {
           display: true,
-          text: `Storey Stiffness — ${direction.toUpperCase()} Direction`,
-          color: COLORS.axisLabel,
-          font: { size: 12, weight: 600 },
+          text: 'Stiffness X axis (kN/m)',
+          color: COLORS.titleColor,
+          font: { size: 13, weight: '600', family: "'Segoe UI', Arial, sans-serif" },
           padding: { bottom: 12 },
         },
-        tooltip: {
-          ...getBaseOptions(UNITS.stiffness).plugins.tooltip,
-          callbacks: {
-            label: (ctx) => {
-              const v = ctx.parsed.x
-              const storey = storeys[ctx.dataIndex]
-              const status = storey[statusKey] || 'N/A'
-              return `K${direction}: ${v?.toFixed(0)} kN/m  [${status}]`
-            },
+        legend: {
+          ...getBaseOptions().plugins.legend,
+          labels: {
+            ...getBaseOptions().plugins.legend.labels,
+            pointStyle: 'line',
           },
         },
       },
       scales: {
         ...getBaseOptions().scales,
-        x: {
-          ...getBaseOptions().scales.x,
-          title: { display: true, text: 'Stiffness (kN/m)', color: COLORS.axisLabel, font: { size: 10 } },
-        },
-      },
-    },
-  }
-}
-
-/**
- * Eccentricity line chart
- */
-export function eccentricityChart(storeys) {
-  const opts = getBaseOptions(UNITS.length)
-  return {
-    data: {
-      labels: storeys.map(s => s.name),
-      datasets: [
-        {
-          label: 'eox (m)',
-          data: storeys.map(s => s.eox),
-          borderColor: COLORS.cyan,
-          backgroundColor: COLORS.cyanLight,
-          fill: false,
-          tension: 0.3,
-          pointRadius: 3,
-          pointHoverRadius: 5,
-          borderWidth: 2,
-        },
-        {
-          label: 'eoy (m)',
-          data: storeys.map(s => s.eoy),
-          borderColor: COLORS.orange,
-          backgroundColor: COLORS.orangeLight,
-          fill: false,
-          tension: 0.3,
-          pointRadius: 3,
-          pointHoverRadius: 5,
-          borderWidth: 2,
-        },
-      ],
-    },
-    options: {
-      ...opts,
-      plugins: {
-        ...opts.plugins,
-        title: {
-          display: true,
-          text: 'Structural Eccentricity Along Height',
-          color: COLORS.axisLabel,
-          font: { size: 12, weight: 600 },
-          padding: { bottom: 12 },
-        },
-        annotation: undefined, // Could add 0-line annotation
-      },
-      scales: {
-        ...opts.scales,
         y: {
-          ...opts.scales.y,
-          title: { display: true, text: 'Eccentricity (m)', color: COLORS.axisLabel, font: { size: 10 } },
-        },
-      },
-    },
-  }
-}
-
-/**
- * Torsional radius line chart
- */
-export function torsionalRadiusChart(storeys) {
-  const opts = getBaseOptions(UNITS.length)
-  return {
-    data: {
-      labels: storeys.map(s => s.name),
-      datasets: [
-        {
-          label: 'rx (m)',
-          data: storeys.map(s => s.rx),
-          borderColor: COLORS.cyan,
-          fill: false,
-          tension: 0.3,
-          pointRadius: 3,
-          borderWidth: 2,
-        },
-        {
-          label: 'ry (m)',
-          data: storeys.map(s => s.ry),
-          borderColor: COLORS.orange,
-          fill: false,
-          tension: 0.3,
-          pointRadius: 3,
-          borderWidth: 2,
-        },
-        {
-          label: 'ls (m)',
-          data: storeys.map(s => s.ls),
-          borderColor: COLORS.red,
-          borderDash: [6, 4],
-          fill: false,
-          tension: 0,
-          pointRadius: 0,
-          borderWidth: 1.5,
-        },
-      ],
-    },
-    options: {
-      ...opts,
-      plugins: {
-        ...opts.plugins,
-        title: {
-          display: true,
-          text: 'Torsional Radii vs Floor Radius',
-          color: COLORS.axisLabel,
-          font: { size: 12, weight: 600 },
-          padding: { bottom: 12 },
-        },
-      },
-      scales: {
-        ...opts.scales,
-        y: {
-          ...opts.scales.y,
-          title: { display: true, text: 'Radius (m)', color: COLORS.axisLabel, font: { size: 10 } },
-        },
-      },
-    },
-  }
-}
-
-/**
- * Mass distribution bar chart
- */
-export function massChart(storeys) {
-  const opts = getBaseOptions(UNITS.mass)
-  return {
-    data: {
-      labels: storeys.map(s => s.name),
-      datasets: [{
-        label: 'Mass (×10³ kg)',
-        data: storeys.map(s => s.module_3_2_8_mass),
-        backgroundColor: storeys.map(s => {
-          if (s.module_3_2_8_status_upper === 'NOT OK' || s.module_3_2_8_status_lower === 'NOT OK')
-            return COLORS.fail
-          return COLORS.pass
-        }),
-        borderRadius: 3,
-        barThickness: 16,
-      }],
-    },
-    options: {
-      ...opts,
-      indexAxis: 'y',
-      plugins: {
-        ...opts.plugins,
-        title: {
-          display: true,
-          text: 'Mass Distribution Along Height',
-          color: COLORS.axisLabel,
-          font: { size: 12, weight: 600 },
-          padding: { bottom: 12 },
-        },
-        tooltip: {
-          ...opts.plugins.tooltip,
-          callbacks: {
-            label: (ctx) => {
-              const v = ctx.parsed.x
-              const storey = storeys[ctx.dataIndex]
-              const upper = storey.module_3_2_8_status_upper || '-'
-              const lower = storey.module_3_2_8_status_lower || '-'
-              return [`Mass: ${v?.toFixed(1)} ×10³ kg`, `< 2·Mi+1: ${upper}`, `< 2·Mi-1: ${lower}`]
-            },
+          ...getBaseOptions().scales.y,
+          beginAtZero: true,
+          ticks: {
+            ...getBaseOptions().scales.y.ticks,
+            callback: (v) => v.toLocaleString(),
           },
         },
       },
@@ -344,135 +147,61 @@ export function massChart(storeys) {
 }
 
 /**
- * Force distribution stacked bar chart (for 3.3)
+ * Chart 2: Stiffness Y axis (kN/m) — LINE chart with markers
+ * Matches Excel: red/orange line, diamond markers
  */
-export function forceDistributionChart(storeys, direction = 'x') {
-  const opts = getBaseOptions(UNITS.force)
-  return {
-    data: {
-      labels: storeys.map(s => s.name),
-      datasets: [
-        {
-          label: 'Column %',
-          data: storeys.map(s => s.column_pct * 100),
-          backgroundColor: COLORS.cyanMedium,
-          borderRadius: 2,
-        },
-        {
-          label: 'Wall %',
-          data: storeys.map(s => s.wall_pct * 100),
-          backgroundColor: COLORS.orangeMedium,
-          borderRadius: 2,
-        },
-      ],
-    },
-    options: {
-      ...opts,
-      indexAxis: 'y',
-      scales: {
-        ...opts.scales,
-        x: {
-          ...opts.scales.x,
-          max: 100,
-          title: { display: true, text: 'Percentage (%)', color: COLORS.axisLabel, font: { size: 10 } },
-        },
-      },
-      plugins: {
-        ...opts.plugins,
-        title: {
-          display: true,
-          text: `${direction.toUpperCase()}-Direction: Column vs Wall Participation`,
-          color: COLORS.axisLabel,
-          font: { size: 12, weight: 600 },
-          padding: { bottom: 12 },
-        },
-      },
-    },
-  }
-}
+export function stiffnessYLineChart(storeys) {
+  const filtered = storeys.filter(s => {
+    const n = s.name?.toUpperCase() || ''
+    return !n.includes('UP ROOF') && !n.includes('BASE')
+  })
 
-/**
- * Modal mass participation line chart (for 4.2)
- */
-export function modalParticipationChart(modes) {
-  const opts = getBaseOptions(UNITS.percent)
   return {
     data: {
-      labels: modes.map(m => `Mode ${m.mode}`),
-      datasets: [
-        {
-          label: 'ΣUX (%)',
-          data: modes.map(m => m.sum_ux),
-          borderColor: COLORS.cyan,
-          backgroundColor: COLORS.cyanLight,
-          fill: true,
-          tension: 0.3,
-          pointRadius: 3,
-          borderWidth: 2,
-        },
-        {
-          label: 'ΣUY (%)',
-          data: modes.map(m => m.sum_uy),
-          borderColor: COLORS.orange,
-          backgroundColor: COLORS.orangeLight,
-          fill: true,
-          tension: 0.3,
-          pointRadius: 3,
-          borderWidth: 2,
-        },
-      ],
-    },
-    options: {
-      ...opts,
-      plugins: {
-        ...opts.plugins,
-        title: {
-          display: true,
-          text: 'Cumulative Modal Mass Participation',
-          color: COLORS.axisLabel,
-          font: { size: 12, weight: 600 },
-          padding: { bottom: 12 },
-        },
-      },
-      scales: {
-        ...opts.scales,
-        y: {
-          ...opts.scales.y,
-          max: 100,
-          title: { display: true, text: 'Mass Participation (%)', color: COLORS.axisLabel, font: { size: 10 } },
-        },
-      },
-    },
-  }
-}
-
-/**
- * Imperfection forces bar chart (for 4.3)
- */
-export function imperfectionForcesChart(storeys) {
-  const opts = getBaseOptions(UNITS.force)
-  return {
-    data: {
-      labels: storeys.map(s => s.name),
+      labels: filtered.map(s => s.name),
       datasets: [{
-        label: 'Hi (kN)',
-        data: storeys.map(s => s.hi),
-        backgroundColor: COLORS.purple,
-        borderRadius: 3,
-        barThickness: 16,
+        label: 'Stiffness Y axis (kN/m)',
+        data: filtered.map(s => s.ky),
+        borderColor: COLORS.stiffnessY,
+        backgroundColor: COLORS.stiffnessY,
+        fill: false,
+        tension: 0.3,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        borderWidth: 2.5,
+        pointStyle: 'rectRot',
+        pointBackgroundColor: COLORS.stiffnessY,
+        pointBorderColor: COLORS.stiffnessY,
       }],
     },
     options: {
-      ...opts,
-      indexAxis: 'y',
+      ...getBaseOptions(),
       plugins: {
-        ...opts.plugins,
+        ...getBaseOptions().plugins,
         title: {
           display: true,
-          text: 'Transversal Imperfection Force per Storey',
-          color: COLORS.axisLabel,
-          font: { size: 12, weight: 600 },
+          text: 'Stiffness Y axis (kN/m)',
+          color: COLORS.titleColor,
+          font: { size: 13, weight: '600', family: "'Segoe UI', Arial, sans-serif" },
           padding: { bottom: 12 },
+        },
+        legend: {
+          ...getBaseOptions().plugins.legend,
+          labels: {
+            ...getBaseOptions().plugins.legend.labels,
+            pointStyle: 'line',
+          },
+        },
+      },
+      scales: {
+        ...getBaseOptions().scales,
+        y: {
+          ...getBaseOptions().scales.y,
+          beginAtZero: true,
+          ticks: {
+            ...getBaseOptions().scales.y.ticks,
+            callback: (v) => v.toLocaleString(),
+          },
         },
       },
     },
@@ -480,40 +209,73 @@ export function imperfectionForcesChart(storeys) {
 }
 
 /**
- * Overturning comparison bar chart (for 4.6)
+ * Chart 3: Elastic vs Design Displacement X — HORIZONTAL GROUPED BAR
+ * Matches Excel: storeys on y-axis (1ST FL at bottom, ROOF FL at top),
+ * two bars per storey: RSEQX ELASTIC DISP (red) and RSEQX Design DISP (blue)
  */
-export function overturningChart(xData, yData) {
-  const opts = getBaseOptions(UNITS.moment)
+export function displacementXBarChart(storeys) {
+  // Filter to ROOF FL through 1ST FL only, reverse for bottom-to-top display
+  const filtered = storeys.filter(s => {
+    const n = s.name?.toUpperCase() || ''
+    return !n.includes('UP ROOF') && !n.includes('BASE') && !n.includes('GROUND')
+  }).reverse()
+
   return {
     data: {
-      labels: ['X-Direction', 'Y-Direction'],
+      labels: filtered.map(s => s.name),
       datasets: [
         {
-          label: 'Overturning Moment (kN·m)',
-          data: [xData.total_ot_moment, yData.total_ot_moment],
-          backgroundColor: COLORS.red,
-          borderRadius: 4,
-          barThickness: 40,
+          label: 'RSEQX ELASTIC DISP',
+          data: filtered.map(s => s.module_3_2_4_limit_x ? null : null), // placeholder
+          backgroundColor: COLORS.elasticDisp,
+          borderRadius: 2,
+          barPercentage: 0.85,
+          categoryPercentage: 0.8,
         },
         {
-          label: 'Resisting Moment (kN·m)',
-          data: [xData.resisting_moment, yData.resisting_moment],
-          backgroundColor: COLORS.green,
-          borderRadius: 4,
-          barThickness: 40,
+          label: 'RSEQX Design DISP',
+          data: filtered.map(s => s.module_3_2_4_limit_x ? null : null), // placeholder
+          backgroundColor: COLORS.designDisp,
+          borderRadius: 2,
+          barPercentage: 0.85,
+          categoryPercentage: 0.8,
         },
       ],
     },
     options: {
-      ...opts,
+      ...getBaseOptions(),
+      indexAxis: 'y',
       plugins: {
-        ...opts.plugins,
+        ...getBaseOptions().plugins,
         title: {
           display: true,
-          text: `Overturning vs Resisting — SF: X=${xData.safety_factor?.toFixed(2)}, Y=${yData.safety_factor?.toFixed(2)}`,
-          color: COLORS.axisLabel,
-          font: { size: 12, weight: 600 },
+          text: 'Elastic spectrum deflection versus Design spectrum deflection\nAlong X-Direction',
+          color: COLORS.titleColor,
+          font: { size: 13, weight: '600', family: "'Segoe UI', Arial, sans-serif" },
           padding: { bottom: 12 },
+        },
+        legend: {
+          ...getBaseOptions().plugins.legend,
+          labels: {
+            ...getBaseOptions().plugins.legend.labels,
+            pointStyle: 'rect',
+            boxWidth: 14,
+            boxHeight: 10,
+          },
+        },
+      },
+      scales: {
+        x: {
+          ...getBaseOptions().scales.x,
+          title: { display: true, text: 'Displacement (m)', color: '#333', font: { size: 10 } },
+          beginAtZero: true,
+        },
+        y: {
+          ...getBaseOptions().scales.y,
+          ticks: {
+            ...getBaseOptions().scales.y.ticks,
+            font: { size: 10, family: "'Segoe UI', Arial, sans-serif" },
+          },
         },
       },
     },
@@ -521,12 +283,73 @@ export function overturningChart(xData, yData) {
 }
 
 /**
- * ChartCard wrapper component style
+ * Chart 4: Elastic vs Design Displacement Y — HORIZONTAL GROUPED BAR
+ * Same as Chart 3 but for Y direction
  */
-export const chartCardStyle = {
-  background: 'var(--bg-secondary)',
-  borderRadius: 8,
-  padding: 20,
-  marginBottom: 20,
-  border: '1px solid var(--border)',
+export function displacementYBarChart(storeys) {
+  const filtered = storeys.filter(s => {
+    const n = s.name?.toUpperCase() || ''
+    return !n.includes('UP ROOF') && !n.includes('BASE') && !n.includes('GROUND')
+  }).reverse()
+
+  return {
+    data: {
+      labels: filtered.map(s => s.name),
+      datasets: [
+        {
+          label: 'RSEQY ELASTIC DISP',
+          data: filtered.map(() => null),
+          backgroundColor: COLORS.elasticDisp,
+          borderRadius: 2,
+          barPercentage: 0.85,
+          categoryPercentage: 0.8,
+        },
+        {
+          label: 'RSEQY Design DISP',
+          data: filtered.map(() => null),
+          backgroundColor: COLORS.designDisp,
+          borderRadius: 2,
+          barPercentage: 0.85,
+          categoryPercentage: 0.8,
+        },
+      ],
+    },
+    options: {
+      ...getBaseOptions(),
+      indexAxis: 'y',
+      plugins: {
+        ...getBaseOptions().plugins,
+        title: {
+          display: true,
+          text: 'Elastic spectrum deflection versus Design spectrum deflection\nAlong Y-Direction',
+          color: COLORS.titleColor,
+          font: { size: 13, weight: '600', family: "'Segoe UI', Arial, sans-serif" },
+          padding: { bottom: 12 },
+        },
+        legend: {
+          ...getBaseOptions().plugins.legend,
+          labels: {
+            ...getBaseOptions().plugins.legend.labels,
+            pointStyle: 'rect',
+            boxWidth: 14,
+            boxHeight: 10,
+          },
+        },
+      },
+      scales: {
+        x: {
+          ...getBaseOptions().scales.x,
+          title: { display: true, text: 'Displacement (m)', color: '#333', font: { size: 10 } },
+          beginAtZero: true,
+        },
+        y: {
+          ...getBaseOptions().scales.y,
+          ticks: {
+            ...getBaseOptions().scales.y.ticks,
+            font: { size: 10, family: "'Segoe UI', Arial, sans-serif" },
+          },
+        },
+      },
+    },
+  }
 }
