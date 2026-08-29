@@ -148,13 +148,28 @@ async def load_local_database(req: LoadLocalRequest):
                 "eoy": s.calculations.eoy,
                 "rx": s.calculations.rx,
                 "ry": s.calculations.ry,
-                "kx": s.calculations.kx,
-                "ky": s.calculations.ky,
+                "kx": s.calculations.kx,                "ky": s.calculations.ky,
+                "ls": s.calculations.ls,
+                "lmax": project.lmax,
+                "lmin": project.lmin,
+                "module_3_2_1_lambda": s.calculations.module_3_2_1_lambda,
+                "module_3_2_1_status": s.calculations.module_3_2_1_status,
+                "module_3_2_4_eox_status": s.calculations.module_3_2_4_eox_status,
+                "module_3_2_4_eoy_status": s.calculations.module_3_2_4_eoy_status,
+                "module_3_2_5_rx_status": s.calculations.module_3_2_5_rx_status,
+                "module_3_2_5_ry_status": s.calculations.module_3_2_5_ry_status,
+                "module_3_2_6_status": s.calculations.module_3_2_6_status,
+                "module_3_2_7_status": s.calculations.module_3_2_7_status,
+                "module_3_2_8_mass": s.calculations.module_3_2_8_mass,
+                "module_3_2_8_status_upper": s.calculations.module_3_2_8_status_upper,
+                "module_3_2_8_status_lower": s.calculations.module_3_2_8_status_lower,
                 "classification": s.calculations.overall_classification.value,
+                "failure_reasons": s.calculations.failure_reasons,
             }
             for s in project.get_storeys_sorted()
         ],
     }
+
 
 
 @app.post("/api/upload")
@@ -235,7 +250,22 @@ async def upload_database(file: UploadFile = File(...)):
                 "ry": s.calculations.ry,
                 "kx": s.calculations.kx,
                 "ky": s.calculations.ky,
+                "ls": s.calculations.ls,
+                "lmax": project.lmax,
+                "lmin": project.lmin,
+                "module_3_2_1_lambda": s.calculations.module_3_2_1_lambda,
+                "module_3_2_1_status": s.calculations.module_3_2_1_status,
+                "module_3_2_4_eox_status": s.calculations.module_3_2_4_eox_status,
+                "module_3_2_4_eoy_status": s.calculations.module_3_2_4_eoy_status,
+                "module_3_2_5_rx_status": s.calculations.module_3_2_5_rx_status,
+                "module_3_2_5_ry_status": s.calculations.module_3_2_5_ry_status,
+                "module_3_2_6_status": s.calculations.module_3_2_6_status,
+                "module_3_2_7_status": s.calculations.module_3_2_7_status,
+                "module_3_2_8_mass": s.calculations.module_3_2_8_mass,
+                "module_3_2_8_status_upper": s.calculations.module_3_2_8_status_upper,
+                "module_3_2_8_status_lower": s.calculations.module_3_2_8_status_lower,
                 "classification": s.calculations.overall_classification.value,
+                "failure_reasons": s.calculations.failure_reasons,
             }
             for s in project.get_storeys_sorted()
         ],
