@@ -494,11 +494,15 @@ function Section43({ data }) {
         <div className="formula">θi = θ₀ × αh × αm = {data.description || `${data.theta0} × ${data.alpha_h} × ${data.alpha_m} = ${data.theta_i}`}</div>
       </div>
       <DataTable
-        headers={['Story', 'Ptot (kN)', 'Height (m)', 'θi', 'Hi (kN)']}
+        headers={['Story', 'Ptot (kN)', 'θ₀', 'L(h)', 'm', 'αh', 'αm', 'θi', 'Hi (kN)']}
         rows={(data.storeys || []).map(s => [
           s.name,
           s.ptot?.toFixed(0),
-          s.height?.toFixed(2),
+          s.theta0,
+          s.l_h?.toFixed(2),
+          s.m,
+          s.alpha_h,
+          s.alpha_m,
           s.theta_i?.toFixed(6),
           { text: s.hi?.toFixed(2), highlight: true },
         ])}

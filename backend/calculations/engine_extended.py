@@ -306,24 +306,24 @@ def calculate_section_4_3(project: Project, ext_data: Dict) -> Dict:
     axial = ext_data.get("axial_loads", {})
     sesmassx = axial.get("SESMASSX", {})
     
+    # Number of columns at each storey (for alpha_m calculation)
+    n_columns = 22  # From Excel: 22 columns
+    
     results = []
-    prev_hi = None
     for storey in storeys:
         name = storey.normalized_name
         height = storey.source_data.height or 3.2
         ptot = sesmassx.get(name, 0)
         hi = ptot * theta_i
         
-        # Inter-storey Hi = Hi_cumulative - Hi_previous
-        if prev_hi is not None:
-            hi_inter = hi - prev_hi
-        else:
-            hi_inter = hi
-        prev_hi = hi
-        
         results.append({
             "name": name,
             "ptot": round(ptot, 2),
+            "theta0": theta0,
+            "l_h": height,
+            "m": n_columns,
+            "alpha_h": alpha_h,
+            "alpha_m": alpha_m,
             "height": height,
             "theta_i": round(theta_i, 6),
             "hi": round(hi, 2),
