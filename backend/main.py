@@ -81,6 +81,26 @@ async def get_status():
     }
 
 
+@app.get("/api/system-stats")
+async def get_system_stats():
+    """Return current CPU, RAM, and disk usage for the import progress display."""
+    import psutil
+    try:
+        cpu = psutil.cpu_percent(interval=0)
+        mem = psutil.virtual_memory()
+        disk = psutil.disk_usage(str(ROOT))
+        return {
+            "cpu_percent": round(cpu, 1),
+            "ram_percent": round(mem.percent, 1),
+            "ram_used_mb": round(mem.used / 1024 / 1024),
+            "ram_total_mb": round(mem.total / 1024 / 1024),
+            "disk_percent": round(disk.percent, 1),
+            "process_count": len(psutil.pids()),
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
 class LoadLocalRequest(BaseModel):
     filename: str = "Bahru Model 1-3.mdb"
 

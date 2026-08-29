@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Upload, BarChart3, FileText, GitCompare, CheckCircle2, XCircle, Home, Sun, Moon, Layers, Settings } from 'lucide-react'
 import BuildingVisualization from './components/BuildingVisualization'
@@ -29,6 +29,15 @@ const DEFAULT_SETTINGS = {
   autoRecalculate: false,
 }
 
+const IMPORT_STAGES = [
+  { id: 'uploading',    duration: 3 },
+  { id: 'reading',      duration: 5 },
+  { id: 'tables',       duration: 8 },
+  { id: 'calculating',  duration: 10 },
+  { id: 'extended',     duration: 6 },
+  { id: 'wrapping',     duration: 3 },
+]
+
 function App() {
   const [projects, setProjects] = useState([])
   const [activeProject, setActiveProject] = useState(null)
@@ -38,6 +47,11 @@ function App() {
   const [activeView, setActiveView] = useState('dashboard')
   const [loading, setLoading] = useState(false)
   const [notification, setNotification] = useState(null)
+  const [uploadProgress, setUploadProgress] = useState(false)
+  const [uploadStage, setUploadStage] = useState(IMPORT_STAGES[0].id)
+  const [uploadElapsed, setUploadElapsed] = useState(0)
+  const stageTimerRef = useRef(null)
+  const elapsedRef = useRef(null)
   const [settings, setSettings] = useState(() => {
     try {
       const saved = localStorage.getItem('app_settings')
@@ -95,14 +109,45 @@ function App() {
     setLoading(false)
   }, [])
 
+  const startProgressTimer = useCallback(() => {
+    setUploadProgress(true)
+    setUploadStage(IMPORT_STAGES[0].id)
+    setUploadElapsed(0)
+
+    const startTime = Date.now()
+    elapsedRef.current = setInterval(() => {
+      setUploadElapsed(Math.floor((Date.now() - startTime) / 1000))
+    }, 500)
+
+    let stageIdx = 0
+    let accumulated = 0
+    stageTimerRef.current = setInterval(() => {
+      accumulated += 0.5
+      setUploadElapsed(Math.floor((Date.now() - startTime) / 1000))
+      while (stageIdx < IMPORT_STAGES.length - 1 && accumulated >= IMPORT_STAGES[stageIdx].duration) {
+        stageIdx++
+        setUploadStage(IMPORT_STAGES[stageIdx].id)
+      }
+    }, 500)
+  }, [stageTimerRef, elapsedRef])
+
+  const stopProgressTimer = useCallback(() => {
+    if (stageTimerRef.current) clearInterval(stageTimerRef.current)
+    if (elapsedRef.current) clearInterval(elapsedRef.current)
+    stageTimerRef.current = null
+    elapsedRef.current = null
+  }, [stageTimerRef, elapsedRef])
+
   const handleUpload = async (file) => {
     setLoading(true)
+    startProgressTimer()
     try {
       const formData = new FormData()
       formData.append('file', file)
       const res = await fetch(`${API}/api/upload`, { method: 'POST', body: formData })
       const data = await res.json()
       if (data.status === 'success') {
+        setUploadStage('wrapping')
         showNotification(`Imported ${data.storeys_imported} storeys from ${data.project_name}`)
         await loadProjects()
         await loadProject(data.project_id)
@@ -112,11 +157,14 @@ function App() {
     } catch (e) {
       showNotification('Upload failed: ' + e.message, 'error')
     }
+    stopProgressTimer()
+    setUploadProgress(false)
     setLoading(false)
   }
 
   const handleLoadLocal = async (filename) => {
     setLoading(true)
+    startProgressTimer()
     try {
       const res = await fetch(`${API}/api/load-local`, {
         method: 'POST',
@@ -125,6 +173,7 @@ function App() {
       })
       const data = await res.json()
       if (data.status === 'success') {
+        setUploadStage('wrapping')
         showNotification(`Loaded ${data.storeys_imported} storeys from ${data.project_name}`)
         await loadProjects()
         await loadProject(data.project_id)
@@ -134,6 +183,8 @@ function App() {
     } catch (e) {
       showNotification('Load failed: ' + e.message, 'error')
     }
+    stopProgressTimer()
+    setUploadProgress(false)
     setLoading(false)
   }
 
@@ -325,7 +376,7 @@ function App() {
           {/* ── Upload ── */}
           {activeView === 'upload' && (
             <motion.div key="upload" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="main-scroll">
-              <ProjectUpload onUpload={handleUpload} onLoadLocal={handleLoadLocal} loading={loading} />
+              <ProjectUpload onUpload={handleUpload} onLoadLocal={handleLoadLocal} loading={loading} uploadProgress={uploadProgress} uploadStage={uploadStage} uploadElapsed={uploadElapsed} />
             </motion.div>
           )}
 
