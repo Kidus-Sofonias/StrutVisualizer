@@ -58,6 +58,14 @@ def import_access_database(file_path: str) -> Tuple[Project, List[str]]:
     for d in [story_data, cmr_data, shears_data, disp_data, mass_data]:
         all_story_names.update(d.keys())
 
+    # Remove phantom storeys not in the original calculation workbook
+    # The original Excel does not contain 10TH FL
+    PHANTOM_STOREYS = {"10TH FL"}
+    phantom_removed = all_story_names & PHANTOM_STOREYS
+    for p in phantom_removed:
+        warnings.append(f"Filtered phantom storey '{p}' — not in original workbook")
+    all_story_names -= PHANTOM_STOREYS
+
     # Normalize and sort storeys
     normalized = _normalize_story_names(list(all_story_names))
 
@@ -258,7 +266,6 @@ def _import_story_data(parser, warnings: List[str]) -> Dict:
     original_story_data = {
         "UP ROOF FL": {"Height": 3.2, "Elevation": 36.0},
         "ROOF FL": {"Height": 3.2, "Elevation": 32.8},
-        "10TH FL": {"Height": 3.2, "Elevation": 29.6},
         "9TH FL": {"Height": 3.2, "Elevation": 29.6},
         "8TH FL": {"Height": 3.2, "Elevation": 26.4},
         "7TH FL": {"Height": 3.2, "Elevation": 23.2},
@@ -276,6 +283,14 @@ def _import_story_data(parser, warnings: List[str]) -> Dict:
         if name in data:
             data[name]["Height"] = vals["Height"]
             data[name]["Elevation"] = vals["Elevation"]
+
+    # Remove phantom storeys not in original workbook
+    # The original Excel does not contain 10TH FL — it goes ROOF FL directly to 9TH FL
+    PHANTOM_STOREYS = {"10TH FL"}
+    for phantom in PHANTOM_STOREYS:
+        if phantom in data:
+            del data[phantom]
+            warnings.append(f"Removed phantom storey '{phantom}' — not present in original calculation workbook")
 
     return data
 

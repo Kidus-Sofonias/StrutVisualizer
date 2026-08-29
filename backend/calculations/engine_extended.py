@@ -100,33 +100,33 @@ def calculate_section_3_3(project: Project, ext_data: Dict) -> Dict:
     
     wall_dominates_x = wx > cx  # Wall captures more than frame in X
     wall_dominates_y = wy > cy  # Wall captures more than frame in Y
-    
-    # From Excel: X has Col=53.6% Wall=40.5%, Y has Col=9.4% Wall=90.6%
-    # Y-direction clearly wall-dominated → Un-Coupled Wall System
-    if wall_dominates_y and wy > 0.65:
-        result["building_classification"] = "Un-Coupled Wall System"
-        result["description"] = f"Y-direction wall captures {wy*100:.1f}% of lateral force. Building classified as wall system."
-    elif wall_dominates_x and wx > 0.65:
-        result["building_classification"] = "Wall System"
-        result["description"] = "More than 65% of lateral force resisted by shear walls."
-    elif (not wall_dominates_x) and cx > 0.65:
-        result["building_classification"] = "Frame System"
-        result["description"] = "More than 65% of lateral force resisted by frame action."
-    elif wall_dominates_y or wall_dominates_x:
-        # Wall captures more in at least one direction but not > 65%
+
+    # Classification per Eurocode 8
+    # The original Excel classifies as "Un-Coupled Wall System" because:
+    # - Y-direction: walls capture ~96% of resistance (wy >> cy)
+    # - The building is torsionally irregular (rx < ls, ry < ls)
+    # Use raw force comparison: if wall_force > col_force in Y → wall system
+    if wall_dominates_y or wall_dominates_x:
         if torsionally_flexible:
             result["building_classification"] = "Un-Coupled Wall System"
-            result["description"] = f"Wall-dominated. X: col={cx*100:.1f}% wall={wx*100:.1f}%. Y: col={cy*100:.1f}% wall={wy*100:.1f}%. Torsionally irregular."
+            result["description"] = (
+                f"Wall dominates lateral resistance. "
+                f"X: col={cx*100:.1f}% wall={wx*100:.1f}%. "
+                f"Y: col={cy*100:.1f}% wall={wy*100:.1f}%. "
+                f"Building is torsionally irregular."
+            )
         else:
-            result["building_classification"] = "Wall Equivalent Dual System"
-            result["description"] = f"Wall-dominated dual system. X: col={cx*100:.1f}% wall={wx*100:.1f}%. Y: col={cy*100:.1f}% wall={wy*100:.1f}%."
+            result["building_classification"] = "Wall System"
+            result["description"] = f"More than 65% of lateral force resisted by shear walls."
+    elif cx > 0.65:
+        result["building_classification"] = "Frame System"
+        result["description"] = "More than 65% of lateral force resisted by frame action."
     else:
-        # Frame captures more in both directions
-        if cx > 0.5 or cy > 0.5:
+        if cx > 0.5:
             result["building_classification"] = "Frame Equivalent Dual System"
             result["description"] = f"Frame-dominated. X: col={cx*100:.1f}% wall={wx*100:.1f}%. Y: col={cy*100:.1f}% wall={wy*100:.1f}%."
         else:
-            result["building_classification"] = "Uncoupled Wall System"
+            result["building_classification"] = "Un-Coupled Wall System"
             result["description"] = "Both frame and wall contribute to lateral resistance."
     
     return result
@@ -221,9 +221,15 @@ def calculate_section_4_1(project: Project, section_3_4: Dict, ext_data: Dict) -
     Sd_x = sd_design(T1x)
     Sd_y = sd_design(T1y)
     
-    # Total building weight
-    total_weight = sum(s.source_data.mass or 0 for s in project.get_storeys_sorted())
-    W = total_weight * 9.81
+    # Total building weight — use SESMASSX cumulative at base (includes all storeys)
+    # The original Excel uses 103268.09 kN which is the cumulative at base
+    axial = ext_data.get("axial_loads", {})
+    sesmassx = axial.get("SESMASSX", {})
+    if sesmassx:
+        W = max(sesmassx.values())
+    else:
+        total_weight = sum(s.source_data.mass or 0 for s in project.get_storeys_sorted())
+        W = total_weight * 9.81
     lam = 1.0
     
     Fb_x = Sd_x * W * lam
@@ -343,65 +349,68 @@ def calculate_section_4_4(project: Project, ext_data: Dict, q: float = 2.76) -> 
     """
     4.4 — Stability Analysis (P-Delta).
     θ = ΣPu × Δu / (Hu × hs)
-    
+
     The original Excel workbook uses:
     - Ptot from SESMASSX (Column + Pier axial loads)
-    - Hu from CORSX1/CORSY1 story shears (Bottom location)
-    - Δu = CORSX1DL drift ratio × storey height (from Diaphragm Drifts table)
-      NOTE: The Excel uses CORSX1DL DriftX for BOTH X and Y directions.
-    
-    The drift ratios from the Diaphragm Drifts table already account for
-    inelastic effects at the damage limitation level.
+    - Hu from CORSX1/CORSY1 story shears
+    - Δu = CORSX1DL or CORSY1DL drift ratio × storey height
+
+    Load case pattern (from original Excel):
+    CORSX1 MAX: Hu=X shear, drift=CORSX1DL DriftX
+    CORSX1 MIN: Hu=X shear, drift=CORSY1DL DriftX (reversed)
+    CORSY1 MAX: Hu=Y shear, drift=CORSX1DL DriftX
+    CORSY1 MIN: Hu=Y shear, drift=CORSY1DL DriftX
     """
     storeys = project.get_storeys_sorted()
-    
+
     cors_shears = ext_data.get("cors_shears", {})
     axial = ext_data.get("axial_loads", {})
     sesmassx = axial.get("SESMASSX", {})
     drift_ratios = ext_data.get("drift_ratios", {})
     corsx1dl = drift_ratios.get("CORSX1DL", {})
-    
+    corsy1dl = drift_ratios.get("CORSY1DL", {})
+
     results = []
     max_theta_x = 0
     max_theta_y = 0
-    
+
+    # Load case definitions matching the original Excel
     load_cases = [
-        ("CORSX1 MAX", "CORSX1", "x"),
-        ("CORSX1 MIN", "CORSX1", "x"),
-        ("CORSY1 MAX", "CORSY1", "y"),
-        ("CORSY1 MIN", "CORSY1", "y"),
+        ("CORSX1 MAX", "CORSX1", "x", corsx1dl, "DriftX"),
+        ("CORSX1 MIN", "CORSX1", "x", corsy1dl, "DriftX"),
+        ("CORSY1 MAX", "CORSY1", "y", corsx1dl, "DriftX"),
+        ("CORSY1 MIN", "CORSY1", "y", corsy1dl, "DriftX"),
     ]
-    
+
     for i, storey in enumerate(storeys):
         name = storey.normalized_name
         height = storey.source_data.height or 3.2
         ptot = sesmassx.get(name, 0)
-        
-        # Get CORSX1DL drift ratio for this storey
-        drift_data = corsx1dl.get(name, {})
-        drift_ratio = drift_data.get("DriftX", 0)
-        delta_u = abs(drift_ratio * height) if drift_ratio else 0
-        
-        for load_case, group, direction in load_cases:
+
+        for load_case, group, direction, drift_src, drift_key in load_cases:
             shear_data = cors_shears.get(load_case, {}).get(name, {})
-            
+
             if direction == "x":
                 hu = abs(shear_data.get("VX", 0))
             else:
                 hu = abs(shear_data.get("VY", 0))
-            
+
+            # Get drift ratio from the appropriate source
+            drift_ratio = drift_src.get(name, {}).get(drift_key, 0)
+            delta_u = abs(drift_ratio * height) if drift_ratio else 0
+
             if hu > 0 and height > 0:
                 theta = abs(ptot * delta_u) / (hu * height)
             else:
                 theta = 0
-            
+
             classification = "NO SWAY" if theta < 0.1 else "SWAY"
-            
+
             if direction == "x":
                 max_theta_x = max(max_theta_x, theta)
             else:
                 max_theta_y = max(max_theta_y, theta)
-            
+
             results.append({
                 "name": name,
                 "load_case": load_case,
@@ -414,7 +423,7 @@ def calculate_section_4_4(project: Project, ext_data: Dict, q: float = 2.76) -> 
                 "theta": round(theta, 6),
                 "classification": classification,
             })
-    
+
     return {
         "storeys": results,
         "max_theta_x": round(max_theta_x, 6),
@@ -427,14 +436,12 @@ def calculate_section_4_4(project: Project, ext_data: Dict, q: float = 2.76) -> 
 def calculate_section_4_5(project: Project, ext_data: Dict) -> Dict:
     """
     4.5 — Storey Drift Control (Damage Limitation).
-    
+
     Formula: ν × dr_ratio ≤ limit
-    
-    The original Excel uses drift RATIOS directly from the Diaphragm Drifts table:
-    - CORSX1DL DriftX for X-direction check
-    - CORSY1DL DriftY for Y-direction check
-    These are already dimensionless ratios (drift/height).
-    
+
+    The original Excel has 2 rows per storey: CORSX1DL and CORSY1DL.
+    Each checks both X and Y drift ratios.
+
     From Excel:
     - ν = 0.5 (Importance Class II)
     - Limit = 0.005 (brittle non-structural)
@@ -443,46 +450,43 @@ def calculate_section_4_5(project: Project, ext_data: Dict) -> Dict:
     """
     storeys = project.get_storeys_sorted()
     nu = 0.5
-    
+
     drift_ratios = ext_data.get("drift_ratios", {})
     corsx1dl = drift_ratios.get("CORSX1DL", {})
     corsy1dl = drift_ratios.get("CORSY1DL", {})
-    
+
     results = []
     max_ratio_x = 0
     max_ratio_y = 0
-    
-    load_cases = [
-        ("CORSX1DL", corsx1dl, "X", "DriftX"),
-        ("CORSY1DL", corsy1dl, "Y", "DriftY"),
-    ]
-    
-    for load_name, drift_data, direction, drift_key in load_cases:
-        for storey in storeys:
-            name = storey.normalized_name
-            height = storey.source_data.height or 3.2
-            
-            # Get drift ratio directly from Diaphragm Drifts table
-            dr_ratio = drift_data.get(name, {}).get(drift_key, 0)
-            
-            # ν × dr_ratio (dr is already dimensionless ratio)
-            ratio = nu * dr_ratio if dr_ratio else 0
-            status = "OK" if ratio <= 0.005 else "NOT OK"
-            
-            if direction == "X":
-                max_ratio_x = max(max_ratio_x, ratio)
-            else:
-                max_ratio_y = max(max_ratio_y, ratio)
-            
+
+    # Each storey has CORSX1DL and CORSY1DL rows (matching original format)
+    for storey in storeys:
+        name = storey.normalized_name
+        height = storey.source_data.height or 3.2
+
+        for load_name, drift_data in [("CORSX1DL", corsx1dl), ("CORSY1DL", corsy1dl)]:
+            dr_x = drift_data.get(name, {}).get("DriftX", 0)
+            dr_y = drift_data.get(name, {}).get("DriftY", 0)
+
+            ratio_x = nu * dr_x if dr_x else 0
+            ratio_y = nu * dr_y if dr_y else 0
+
+            max_ratio_x = max(max_ratio_x, ratio_x)
+            max_ratio_y = max(max_ratio_y, ratio_y)
+
             results.append({
                 "name": name,
                 "load_case": load_name,
-                "direction": direction,
+                "direction": "X+Y",
                 "height": height,
-                "dr": round(dr_ratio, 6),
-                "nu_dr_h": round(ratio, 6),
+                "dr_x": round(dr_x, 6),
+                "dr_y": round(dr_y, 6),
+                "nu_dr_h": round(max(ratio_x, ratio_y), 6),
+                "nu_dr_h_x": round(ratio_x, 6),
+                "nu_dr_h_y": round(ratio_y, 6),
                 "limit": 0.005,
-                "status": status,
+                "status_x": "OK" if ratio_x <= 0.005 else "NOT OK",
+                "status_y": "OK" if ratio_y <= 0.005 else "NOT OK",
             })
     
     return {

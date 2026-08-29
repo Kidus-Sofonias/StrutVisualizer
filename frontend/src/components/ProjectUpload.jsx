@@ -6,7 +6,7 @@ import {
   FileSearch, Calculator, DatabaseIcon, Save, Zap, Clock,
 } from 'lucide-react'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8005'
+const API = import.meta.env.VITE_API_URL || 'http://localhost:8007'
 
 // Import processing stages — shown during the upload progress
 const IMPORT_STAGES = [

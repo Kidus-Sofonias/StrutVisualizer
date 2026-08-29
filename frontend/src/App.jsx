@@ -11,7 +11,7 @@ import SectionView from './components/SectionView'
 import SettingsPage from './components/SettingsPage'
 import './App.css'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8005'
+const API = import.meta.env.VITE_API_URL || 'http://localhost:8007'
 
 const DEFAULT_SETTINGS = {
   theme: 'light',
@@ -52,6 +52,8 @@ function App() {
   const [uploadElapsed, setUploadElapsed] = useState(0)
   const stageTimerRef = useRef(null)
   const elapsedRef = useRef(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const sidebarCloseTimer = useRef(null)
   const [settings, setSettings] = useState(() => {
     try {
       const saved = localStorage.getItem('app_settings')
@@ -240,6 +242,15 @@ function App() {
     { id: 'settings', icon: Settings, label: 'Settings' },
   ]
 
+  const handleSidebarEnter = useCallback(() => {
+    if (sidebarCloseTimer.current) clearTimeout(sidebarCloseTimer.current)
+    setSidebarOpen(true)
+  }, [])
+
+  const handleSidebarLeave = useCallback(() => {
+    sidebarCloseTimer.current = setTimeout(() => setSidebarOpen(false), 250)
+  }, [])
+
   return (
     <div className="app">
       {/* Notification */}
@@ -257,29 +268,34 @@ function App() {
         )}
       </AnimatePresence>
 
-      {/* ── Collapsed Icon Sidebar ── */}
-      <div className="sidebar">
+      {/* ── Base Icon Rail (always visible) ── */}
+      <div
+        className="sidebar"
+        onMouseEnter={handleSidebarEnter}
+        onMouseLeave={handleSidebarLeave}
+      >
         <div className="sidebar-logo" onClick={() => setActiveView('dashboard')}>
           <Layers size={18} style={{ color: 'var(--accent)' }} />
         </div>
 
-        {navItems.map(item => (
-          <button
-            key={item.id}
-            className={`nav-item ${activeView === item.id ? 'active' : ''}`}
-            onClick={() => setActiveView(item.id)}
-          >
-            <item.icon size={18} />
-            <span className="nav-tooltip">{item.label}</span>
-          </button>
-        ))}
+        <div className="sidebar-nav-rail">
+          {navItems.map(item => (
+            <button
+              key={item.id}
+              className={`nav-item-rail ${activeView === item.id ? 'active' : ''}`}
+              onClick={() => setActiveView(item.id)}
+              title={item.label}
+            >
+              <item.icon size={18} />
+            </button>
+          ))}
+        </div>
 
-        {/* Project dots */}
-        <div className="project-list-rail">
+        <div className="sidebar-project-rail">
           {projects.map((p, i) => (
             <button
               key={p.id}
-              className={`project-dot ${activeProject?.project_id === p.id ? 'active' : ''}`}
+              className={`project-dot-rail ${activeProject?.project_id === p.id ? 'active' : ''}`}
               onClick={() => loadProject(p.id)}
               title={p.name}
             >
@@ -288,13 +304,68 @@ function App() {
           ))}
         </div>
 
-        <div className="sidebar-bottom">
+        <div className="sidebar-bottom-rail">
           <button
-            className="nav-item"
+            className="nav-item-rail"
             onClick={() => updateSettings({ ...settings, theme: settings.theme === 'dark' ? 'light' : 'dark' })}
             title={settings.theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
           >
             {settings.theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+        </div>
+      </div>
+
+      {/* ── YouTube-style Floating Overlay ── */}
+      <div
+        className={`sidebar-overlay ${sidebarOpen ? 'open' : ''}`}
+        onMouseEnter={handleSidebarEnter}
+        onMouseLeave={handleSidebarLeave}
+      >
+        <div className="sidebar-overlay-logo" onClick={() => { setActiveView('dashboard'); setSidebarOpen(false) }}>
+          <Layers size={18} style={{ color: 'var(--accent)' }} />
+        </div>
+
+        <div className="sidebar-overlay-nav">
+          {navItems.map(item => (
+            <button
+              key={item.id}
+              className={`sidebar-overlay-item ${activeView === item.id ? 'active' : ''}`}
+              onClick={() => { setActiveView(item.id); setSidebarOpen(false) }}
+            >
+              <span className="sidebar-overlay-item-icon">
+                <item.icon size={20} />
+              </span>
+              {item.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="sidebar-overlay-divider" />
+
+        <div className="sidebar-overlay-section-label">Projects</div>
+
+        <div className="sidebar-overlay-projects">
+          {projects.map((p, i) => (
+            <button
+              key={p.id}
+              className={`sidebar-overlay-project ${activeProject?.project_id === p.id ? 'active' : ''}`}
+              onClick={() => { loadProject(p.id); setSidebarOpen(false) }}
+            >
+              <span className="sidebar-overlay-project-num">{i + 1}</span>
+              {p.name}
+            </button>
+          ))}
+        </div>
+
+        <div className="sidebar-overlay-bottom">
+          <button
+            className="sidebar-overlay-item"
+            onClick={() => { updateSettings({ ...settings, theme: settings.theme === 'dark' ? 'light' : 'dark' }); setSidebarOpen(false) }}
+          >
+            <span className="sidebar-overlay-item-icon">
+              {settings.theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+            </span>
+            {settings.theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
           </button>
         </div>
       </div>
