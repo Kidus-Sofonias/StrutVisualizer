@@ -428,66 +428,45 @@ def calculate_section_4_5(project: Project, ext_data: Dict) -> Dict:
     """
     4.5 — Storey Drift Control (Damage Limitation).
     
-    Formula: ν × dr / h ≤ limit
+    Formula: ν × dr_ratio ≤ limit
     
-    Key: dr is the INTER-STOREY DRIFT = UX(storey_i) - UX(storey_{i-1})
-    NOT the total displacement.
+    The original Excel uses drift RATIOS directly from the Diaphragm Drifts table:
+    - CORSX1DL DriftX for X-direction check
+    - CORSY1DL DriftY for Y-direction check
+    These are already dimensionless ratios (drift/height).
     
     From Excel:
     - ν = 0.5 (Importance Class II)
     - Limit = 0.005 (brittle non-structural)
-    - Max X-Drift = 0.003053 → OK
-    - Max Y-Drift = 0.002592 → OK
-    
-    The Excel uses CORSX1DL/CORSY1DL displacements.
+    - Max X-Drift ratio = 0.003053 → OK
+    - Max Y-Drift ratio = 0.002592 → OK
     """
     storeys = project.get_storeys_sorted()
     nu = 0.5
     
-    cors_dl = ext_data.get("cors_dl_displacements", {})
-    
-    # Build displacement lookup per load case
-    # Storeys are sorted top-to-bottom (UP ROOF → GROUND)
-    # We need to compute inter-storey drift = UX(top) - UX(bottom)
+    drift_ratios = ext_data.get("drift_ratios", {})
+    corsx1dl = drift_ratios.get("CORSX1DL", {})
+    corsy1dl = drift_ratios.get("CORSY1DL", {})
     
     results = []
     max_ratio_x = 0
     max_ratio_y = 0
     
     load_cases = [
-        ("CORSX1DL MAX", "X"),
-        ("CORSX1DL MIN", "X"),
-        ("CORSY1DL MAX", "Y"),
-        ("CORSY1DL MIN", "Y"),
+        ("CORSX1DL", corsx1dl, "X", "DriftX"),
+        ("CORSY1DL", corsy1dl, "Y", "DriftY"),
     ]
     
-    for load_case, direction in load_cases:
-        disp_data = cors_dl.get(load_case, {})
-        
-        for i, storey in enumerate(storeys):
+    for load_name, drift_data, direction, drift_key in load_cases:
+        for storey in storeys:
             name = storey.normalized_name
             height = storey.source_data.height or 3.2
             
-            # Get displacement at this storey
-            if direction == "X":
-                ux_here = abs(disp_data.get(name, {}).get("UX", 0))
-            else:
-                ux_here = abs(disp_data.get(name, {}).get("UY", 0))
+            # Get drift ratio directly from Diaphragm Drifts table
+            dr_ratio = drift_data.get(name, {}).get(drift_key, 0)
             
-            # Inter-storey drift = |UX(this storey) - UX(storey below)|
-            # Storeys are sorted top-to-bottom, so next storey is below
-            if i < len(storeys) - 1:
-                next_name = storeys[i + 1].normalized_name
-                if direction == "X":
-                    ux_below = abs(disp_data.get(next_name, {}).get("UX", 0))
-                else:
-                    ux_below = abs(disp_data.get(next_name, {}).get("UY", 0))
-                dr = abs(ux_here - ux_below)
-            else:
-                # Bottom storey — use displacement directly
-                dr = ux_here
-            
-            ratio = nu * dr / height if height > 0 else 0
+            # ν × dr_ratio (dr is already dimensionless ratio)
+            ratio = nu * dr_ratio if dr_ratio else 0
             status = "OK" if ratio <= 0.005 else "NOT OK"
             
             if direction == "X":
@@ -497,10 +476,10 @@ def calculate_section_4_5(project: Project, ext_data: Dict) -> Dict:
             
             results.append({
                 "name": name,
-                "load_case": load_case,
+                "load_case": load_name,
                 "direction": direction,
                 "height": height,
-                "dr": round(dr, 6),
+                "dr": round(dr_ratio, 6),
                 "nu_dr_h": round(ratio, 6),
                 "limit": 0.005,
                 "status": status,
