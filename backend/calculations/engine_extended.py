@@ -183,6 +183,15 @@ def calculate_section_4_1(project: Project, section_3_4: Dict, ext_data: Dict) -
     """
     4.1 — Base Shear Calculation.
     Fb = Sd(T) × W × λ
+
+    NOTE on total weight W:
+    The original Excel workbook computes W via:
+        SUMIF('Base Reactions'!D:G, "SESMASSX", 'Base Reactions'!G:G) = 103,268 kN
+    This sums FZ reactions at every individual foundation support point.
+    The MDB export does NOT contain a 'Base Reactions' table.
+    We use Column Forces + Pier Forces at the base as the best approximation.
+    Current value: ~100,925 kN (2.3% below Excel).
+    This is within acceptable engineering tolerance for seismic base shear.
     """
     q = section_3_4["q"]
     ag = 0.1
