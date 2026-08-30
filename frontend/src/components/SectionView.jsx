@@ -570,16 +570,17 @@ function Section45({ data }) {
         <InfoCard label="Y Status" value={data.max_status_y} />
       </div>
       <DataTable
-        headers={['Story', 'Load Case', 'Dir', 'Height (m)', 'dr (m)', 'ν·dr/h', 'Limit', 'Status']}
+        headers={['Story', 'Load Case', 'dr X (m)', 'dr Y (m)', 'ν·dr/h (X)', 'ν·dr/h (Y)', 'Limit', 'X Status', 'Y Status']}
         rows={(data.storeys || []).map(s => [
           s.name,
           s.load_case,
-          s.direction,
-          s.height?.toFixed(2),
-          s.dr?.toFixed(6),
-          s.nu_dr_h?.toFixed(6),
+          s.dr_x?.toFixed(6),
+          s.dr_y?.toFixed(6),
+          s.nu_dr_h_x?.toFixed(6),
+          s.nu_dr_h_y?.toFixed(6),
           s.limit,
-          { text: s.status, status: true },
+          { text: s.status_x, status: true },
+          { text: s.status_y, status: true },
         ])}
       />
     </div>
