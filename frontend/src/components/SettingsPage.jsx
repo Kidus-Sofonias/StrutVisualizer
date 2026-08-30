@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { Settings, Sun, Moon, FileText, Table, BarChart3, Download, RotateCcw, Weight } from 'lucide-react'
+import { Settings, Sun, Moon, FileText, Table, BarChart3, Download, RotateCcw, Weight, Info } from 'lucide-react'
 
 const DEFAULT_SETTINGS = {
   theme: 'light',
@@ -138,9 +138,15 @@ function WeightOverrideSection() {
 
 export default function SettingsPage({ settings, onUpdate }) {
   const [local, setLocal] = useState({ ...DEFAULT_SETTINGS, ...settings })
+  const [versionInfo, setVersionInfo] = useState(null)
 
   useEffect(() => {
     setLocal({ ...DEFAULT_SETTINGS, ...settings })
+    const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+    fetch(`${API}/api/version`)
+      .then(r => r.json())
+      .then(setVersionInfo)
+      .catch(() => {})
   }, [settings])
 
   const update = (key, value) => {
@@ -348,6 +354,32 @@ export default function SettingsPage({ settings, onUpdate }) {
 
       {/* Engineering Parameters */}
       <WeightOverrideSection />
+
+      {/* Version Info */}
+      <div className="settings-section">
+        <h3><Info size={16} style={{ verticalAlign: -2, color: 'var(--accent)' }} /> About</h3>
+        <div className="settings-row">
+          <div>
+            <div className="label">Structural Engineering Analysis</div>
+            <div className="hint">Seismic analysis and reporting tool</div>
+          </div>
+          <div style={{ textAlign: 'right', fontSize: 13 }}>
+            {versionInfo ? (
+              <>
+                <div style={{ fontWeight: 600, color: 'var(--text-primary)', fontFamily: "'JetBrains Mono', monospace" }}>
+                  v{versionInfo.version} (build {versionInfo.build})
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 2 }}>
+                  {versionInfo.git_hash && `Commit: ${versionInfo.git_hash}`}
+                  {versionInfo.build_date && ` | ${versionInfo.build_date}`}
+                </div>
+              </>
+            ) : (
+              <div style={{ color: 'var(--text-tertiary)' }}>Loading...</div>
+            )}
+          </div>
+        </div>
+      </div>
     </motion.div>
   )
 }

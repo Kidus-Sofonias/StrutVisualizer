@@ -81,6 +81,46 @@ async def get_status():
     }
 
 
+@app.get("/api/version")
+async def get_version():
+    """Return application version info."""
+    version_file = ROOT / "backend" / "VERSION"
+    version = "1.0.0"
+    build_date = ""
+    git_hash = ""
+    git_count = 0
+    
+    if version_file.exists():
+        version = version_file.read_text().strip()
+    
+    try:
+        import subprocess
+        result = subprocess.run(
+            ["git", "log", "-1", "--format=%H %ai"],
+            capture_output=True, text=True, cwd=str(ROOT), timeout=5
+        )
+        if result.returncode == 0:
+            parts = result.stdout.strip().split(" ", 1)
+            git_hash = parts[0][:8] if parts else ""
+            build_date = parts[1][:10] if len(parts) > 1 else ""
+        
+        result2 = subprocess.run(
+            ["git", "rev-list", "--count", "HEAD"],
+            capture_output=True, text=True, cwd=str(ROOT), timeout=5
+        )
+        if result2.returncode == 0:
+            git_count = int(result2.stdout.strip())
+    except Exception:
+        pass
+    
+    return {
+        "version": version,
+        "build": git_count,
+        "git_hash": git_hash,
+        "build_date": build_date,
+    }
+
+
 @app.get("/api/system-stats")
 async def get_system_stats():
     """Return current CPU, RAM, and disk usage for the import progress display."""
