@@ -883,13 +883,134 @@ async def export_docx():
     sections = projects_store[pid].get("sections", {})
     ext_data = projects_store[pid].get("ext_data", {})
 
+    # Build project info dict for the DOCX generator
+    project_info = {
+        "project_name": getattr(project, 'project_name', 'Structural Project'),
+        "client_name": getattr(project, 'client_name', ''),
+        "location": getattr(project, 'location', 'Addis Ababa, Ethiopia'),
+        "designed_by": getattr(project, 'designed_by', 'Sofonias B'),
+        "description": getattr(project, 'description', ''),
+    }
+
+    # Build results dict mapping section keys for the DOCX generator
+    # section_3_2 comes from the project storeys (engine.py calculate_all)
+    storeys_sorted = project.get_storeys_sorted() if hasattr(project, 'get_storeys_sorted') else []
+    section_3_2 = {
+        "slenderness": {
+            "Lmax": getattr(project, 'lmax', 0),
+            "Lmin": getattr(project, 'lmin', 0),
+            "slenderness_ratio": getattr(project, 'lmax', 0) / getattr(project, 'lmin', 1) if getattr(project, 'lmin', 0) > 0 else 0,
+            "status": "OK",
+        },
+        "eccentricity": [
+            {
+                "name": s.normalized_name,
+                "cmx": s.source_data.xcm if s.source_data else None,
+                "cmy": s.source_data.ycm if s.source_data else None,
+                "crx": s.source_data.xcr if s.source_data else None,
+                "cry": s.source_data.ycr if s.source_data else None,
+                "eox": s.calculations.eox if s.calculations else None,
+                "eoy": s.calculations.eoy if s.calculations else None,
+            } for s in storeys_sorted
+        ],
+        "torsional_radius": [
+            {
+                "name": s.normalized_name,
+                "ul1_ux": s.source_data.ux_ul1 if s.source_data else None,
+                "ul2_uy": s.source_data.uy_ul2 if s.source_data else None,
+                "ul3_rz": s.source_data.rz_ul3 if s.source_data else None,
+                "rx": s.calculations.rx if s.calculations else None,
+                "ry": s.calculations.ry if s.calculations else None,
+            } for s in storeys_sorted
+        ],
+        "eccentricity_comparison": [
+            {
+                "name": s.normalized_name,
+                "eox": s.calculations.eox if s.calculations else None,
+                "rx": s.calculations.rx if s.calculations else None,
+                "threshold_x": round(0.3 * (s.calculations.rx or 0), 3) if s.calculations else None,
+                "status_x": s.calculations.module_3_2_4_eox_status if s.calculations else "—",
+                "eoy": s.calculations.eoy if s.calculations else None,
+                "ry": s.calculations.ry if s.calculations else None,
+                "threshold_y": round(0.3 * (s.calculations.ry or 0), 3) if s.calculations else None,
+                "status_y": s.calculations.module_3_2_4_eoy_status if s.calculations else "—",
+            } for s in storeys_sorted
+        ],
+        "floor_radius": [
+            {
+                "name": s.normalized_name,
+                "rx": s.calculations.rx if s.calculations else None,
+                "ls": s.calculations.ls if s.calculations else None,
+                "status_x": s.calculations.module_3_2_5_rx_status if s.calculations else "—",
+                "ry": s.calculations.ry if s.calculations else None,
+                "status_y": s.calculations.module_3_2_5_ry_status if s.calculations else "—",
+            } for s in storeys_sorted
+        ],
+        "stiffness_x": [
+            {
+                "name": s.normalized_name,
+                "elevation": s.elevation if hasattr(s, 'elevation') else None,
+                "stiffness_x": s.calculations.kx if s.calculations else None,
+                "status": s.calculations.module_3_2_6_status if s.calculations else "—",
+            } for s in storeys_sorted
+        ],
+        "stiffness_y": [
+            {
+                "name": s.normalized_name,
+                "elevation": s.elevation if hasattr(s, 'elevation') else None,
+                "stiffness_y": s.calculations.ky if s.calculations else None,
+                "status": s.calculations.module_3_2_7_status if s.calculations else "—",
+            } for s in storeys_sorted
+        ],
+        "mass_distribution": [
+            {
+                "name": s.normalized_name,
+                "elevation": s.elevation if hasattr(s, 'elevation') else None,
+                "mass": s.calculations.module_3_2_8_mass if s.calculations else None,
+                "status_above": s.calculations.module_3_2_8_status_upper if s.calculations else "—",
+                "status_below": s.calculations.module_3_2_8_status_lower if s.calculations else "—",
+            } for s in storeys_sorted
+        ],
+        "displacement_x": [
+            {"name": s.normalized_name, "design_disp": s.source_data.ux_eqx if s.source_data else None,
+             "elastic_disp": s.source_data.ux_eqy if s.source_data else None}
+            for s in storeys_sorted if s.source_data and (s.source_data.ux_eqx is not None or s.source_data.ux_eqy is not None)
+        ],
+        "displacement_y": [
+            {"name": s.normalized_name, "design_disp": s.source_data.uy_eqx if s.source_data else None,
+             "elastic_disp": s.source_data.uy_eqy if s.source_data else None}
+            for s in storeys_sorted if s.source_data and (s.source_data.uy_eqx is not None or s.source_data.uy_eqy is not None)
+        ],
+    }
+
+    results = {
+        "section_3_2": section_3_2,
+        "section_3_3": sections.get("3.3", {}),
+        "section_3_4": sections.get("3.4", {}),
+        "section_4_1": sections.get("4.1", {}),
+        "section_4_2": sections.get("4.2", {}),
+        "section_4_3": sections.get("4.3", {}),
+        "section_4_4": sections.get("4.4", {}),
+        "section_4_5": sections.get("4.5", {}),
+        "section_4_6": sections.get("4.6", {}),
+        "behavior": sections.get("3.4", {}),
+    }
+
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"{project.project_name}_Structural_Design_Report.docx"
     output_path = EXPORTS_DIR / filename
 
     try:
         from exporters.docx_exporter import generate_docx_report
-        generate_docx_report(project, sections, ext_data, str(output_path))
+        generate_docx_report(project_info, results, str(EXPORTS_DIR))
+        # Find the actual generated file
+        import glob
+        docx_files = sorted(glob.glob(str(EXPORTS_DIR / "Structural_Design_Report_*.docx")), reverse=True)
+        if docx_files:
+            actual_path = docx_files[0]
+            # Rename to the expected name
+            import shutil
+            shutil.move(actual_path, str(output_path))
     except Exception as e:
         import traceback
         traceback.print_exc()

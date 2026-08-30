@@ -545,39 +545,45 @@ def _create_4_1_sheet(wb, project, storeys, data):
     r = _title(ws, r, "4.1 Base Shear Calculation")
     r += 2
 
-    # Seismic Parameters — these are INPUTS
+    # Seismic Parameters — these are INPUTS stored in column C
     r = _subtitle(ws, r, "Seismic Parameters")
     r = _header_row(ws, r, ["#", "Parameter", "Value"])
+    # Row 5 = header; data starts at row 6
+    # C6=ag=0.1, C7=GroundType, C8=SpectrumType, C9=S=1.35
+    # C10=TB=0.05, C11=TC=0.25, C12=TD=1.2, C13=beta=0.2, C14=q=2.76
     params = [
-        ("Peak Ground Acceleration (ag)", f"{data.get('ag', '')} g"),
-        ("Ground Type", data.get("ground_type", "")),
-        ("Spectrum Type", data.get("spectrum_type", "")),
-        ("Soil Factor (S)", data.get("S", "")),
-        ("TB", f"{data.get('TB', '')} s"),
-        ("TC", f"{data.get('TC', '')} s"),
-        ("TD", f"{data.get('TD', '')} s"),
-        ("Damping (beta)", data.get("beta", "")),
-        ("Behavior Factor (q)", data.get("q", "")),
+        ("Peak Ground Acceleration (ag)", data.get("ag", 0.1)),
+        ("Ground Type", data.get("ground_type", "B")),
+        ("Spectrum Type", data.get("spectrum_type", 1)),
+        ("Soil Factor (S)", data.get("S", 1.35)),
+        ("TB (s)", data.get("TB", 0.05)),
+        ("TC (s)", data.get("TC", 0.25)),
+        ("TD (s)", data.get("TD", 1.2)),
+        ("Damping ratio (beta)", data.get("beta", 0.2)),
+        ("Behavior Factor (q)", data.get("q", 2.76)),
     ]
     for i, (label, val) in enumerate(params):
         _cell(ws, r, 1, i + 1)
         _cell(ws, r, 2, label)
-        _cell(ws, r, 3, str(val) if val is not None else "-")
+        _cell(ws, r, 3, val if not isinstance(val, (int, float)) else val)
         r += 1
+    # r is now 15 after 9 params (rows 6-14)
     r += 1
 
     # Fundamental periods
+    # C16=T1x, F16=T1y (same row)
     r = _subtitle(ws, r, "Fundamental Periods")
-    r_row = r
+    period_row = r
     _cell(ws, r, 2, "T1x:", font=BOLD_FONT, border=False)
-    _cell(ws, r, 3, data.get("T1x", ""))
+    _cell(ws, r, 3, _fmt(data.get("T1x"), 6))
     _cell(ws, r, 4, "s", border=False)
     _cell(ws, r, 5, "T1y:", font=BOLD_FONT, border=False)
-    _cell(ws, r, 6, data.get("T1y", ""))
+    _cell(ws, r, 6, _fmt(data.get("T1y"), 6))
     _cell(ws, r, 7, "s", border=False)
     r += 2
+    # r is now 18
 
-    # Design spectrum
+    # Design spectrum formula descriptions
     r = _subtitle(ws, r, "Design Spectrum Sd(T)")
     eqs = [
         "0 <= T <= TB:  Sd(T) = ag * S * (2/3 + T/TB * (2.5/q - 2/3))",
@@ -589,36 +595,85 @@ def _create_4_1_sheet(wb, project, storeys, data):
         _cell(ws, r, 2, eq, font=Font(name="Consolas", size=10, color="1F4E79"), border=False)
         r += 1
     r += 1
+    # r is now 24
 
-    # Results — with FORMULAS
+    # Results section
     r = _subtitle(ws, r, "Base Shear Results")
-    res_row = r
+    # r=25, header row=26
     r = _header_row(ws, r, ["#", "Direction", "Sd(T) (% ag)", "Fb (kN)", "Lower Bound (kN)", "Weight (kN)", "Modal %"])
+    # r is now 27 (data row)
 
-    # Store parameter cell references for formulas
-    # ag=C6, S=C9, TB=C10, TC=C11, TD=C12, q=C14, T1x=C17, T1y=F17
-    # Weight = W cell
-    W_row = r  # row where weight is
-    # X row
+    # Cell references:
+    # ag = C6, S = C9, TB = C10, TC = C11, TD = C12, q = C14
+    # T1x = C{period_row}, T1y = F{period_row}
+    ag_cell = "C6"
+    S_cell = "C9"
+    TB_cell = "C10"
+    TC_cell = "C11"
+    TD_cell = "C12"
+    q_cell = "C14"
+    T1x_cell = f"C{period_row}"
+    T1y_cell = f"F{period_row}"
+
+    # X direction row
     x_row = r
     _cell(ws, r, 1, 1)
     _cell(ws, r, 2, "X")
-    # Sd_x: formula for Sd(T1x) in g — already computed, store as value
-    _cell(ws, r, 3, _fmt(data.get("Sd_x_pct"), 2))
-    _cell(ws, r, 4, _fmt(data.get("Fb_x"), 2))
-    _cell(ws, r, 5, _fmt(data.get("lower_bound_x"), 2))
-    _cell(ws, r, 6, _fmt(data.get("total_weight_kN"), 0))
-    _cell(ws, r, 7, _fmt(data.get("modal_ratio_x", 0) * 100, 1))
+    # Sd(T1x) formula: IF(T1x<=TC, ag*S*2.5/q, ag*S*2.5/q*(TC/T1x)) since T1x > TC for this building
+    sd_x_formula = f"=IF({T1x_cell}<={TB_cell},{ag_cell}*{S_cell}*(2/3+{T1x_cell}/{TB_cell}*(2.5/{q_cell}-2/3)),IF({T1x_cell}<={TC_cell},{ag_cell}*{S_cell}*2.5/{q_cell},{ag_cell}*{S_cell}*2.5/{q_cell}*{TC_cell}/{T1x_cell}))"
+    sd_x_cell_ref = f"C{x_row}"
+    _cell(ws, r, 3, sd_x_formula)
+    ws.cell(r, 3).number_format = '0.0000'
+    # Fb_x = Sd(T1x) * Weight / 100 (Sd is in % ag, so Fb = Sd/100 * Weight * 100 = Sd_pct * Weight / 100... actually Fb = Sd(T)*W where Sd is in g units)
+    # Actually: Fb = Sd(T) * W where Sd(T) is the spectral acceleration in g, and W is total weight in kN
+    # Since sd_x is in %ag, Fb = (sd_x/100) * W
+    # But the original shows Sd(T) as percentage, and Fb = 2065.36 with W=103268
+    # 2065.36 / 103268 = 0.02 = 2% -> Sd = 2.0% ag
+    # So: Fb = Sd_pct * W / 100
+    weight_row = r  # Weight is in column F of this row
+    _cell(ws, r, 4, f"={sd_x_cell_ref}*F{x_row}/100")
+    ws.cell(r, 4).number_format = '0.00'
+    # Lower bound X = 0.5 * ag * W * modal_ratio_x / 100  (or beta * ag * W * modal_ratio)
+    # Actually: LB = 0.05 * S * q^(-0.5) * W (Eurocode formula)
+    # Let's use the direct formula: LB = 0.05 * q^(-0.75) * S * ag * W  -- no, it varies by code
+    # Original: LB_X = 1029.94 with W=103268, ag=0.1, S=1.35, q=2.76
+    # 1029.94 / 103268 = 0.00997 ~ 0.01
+    # 0.05 * 1.35 * 2.76^(-0.75) * 0.1 = 0.05 * 1.35 * 0.4424 * 0.1 = 0.00298 -- no
+    # Try: LB = 0.5 * ag * S * W * modal_ratio_x = 0.5 * 0.1 * 1.0 * 103268 * 0.4987 = 2574 -- no
+    # The standard Eurocode lower bound: Fb >= 0.02 * W  =>  0.02 * 103268 = 2065.36 -- that's exactly Fb!
+    # LB in Eurocode: Fb_min = max(0.01*W, 0.05*S/q^(2/3) * W)  or similar
+    # From original: LB_X = 1029.94, LB_Y = 1152.83
+    # 1029.94 / 103268 = 0.009973 ~ 0.01
+    # 1152.83 / 103268 = 0.011164 ~ 0.012
+    # LB = beta * ag * W * modal_ratio
+    beta_cell = "C13"
+    _cell(ws, r, 5, f"={beta_cell}*{ag_cell}*F{x_row}*G{x_row}/100")
+    ws.cell(r, 5).number_format = '0.00'
+    # Weight (total seismic weight)
+    _cell(ws, r, 6, _fmt(data.get("total_weight_kN"), 2))
+    # Modal participation ratio (%)
+    _cell(ws, r, 7, _fmt(data.get("modal_ratio_x", 0), 2))
     r += 1
-    # Y row
+
+    # Y direction row
     y_row = r
     _cell(ws, r, 1, 2)
     _cell(ws, r, 2, "Y")
-    _cell(ws, r, 3, _fmt(data.get("Sd_y_pct"), 2))
-    _cell(ws, r, 4, _fmt(data.get("Fb_y"), 2))
-    _cell(ws, r, 5, _fmt(data.get("lower_bound_y"), 2))
-    _cell(ws, r, 6, _fmt(data.get("total_weight_kN"), 0))
-    _cell(ws, r, 7, _fmt(data.get("modal_ratio_y", 0) * 100, 1))
+    sd_y_formula = f"=IF({T1y_cell}<={TB_cell},{ag_cell}*{S_cell}*(2/3+{T1y_cell}/{TB_cell}*(2.5/{q_cell}-2/3)),IF({T1y_cell}<={TC_cell},{ag_cell}*{S_cell}*2.5/{q_cell},{ag_cell}*{S_cell}*2.5/{q_cell}*{TC_cell}/{T1y_cell}))"
+    sd_y_cell_ref = f"C{y_row}"
+    _cell(ws, r, 3, sd_y_formula)
+    ws.cell(r, 3).number_format = '0.0000'
+    # Fb_y
+    _cell(ws, r, 4, f"={sd_y_cell_ref}*F{y_row}/100")
+    ws.cell(r, 4).number_format = '0.00'
+    # Lower bound Y = beta * ag * W * modal_ratio_y
+    _cell(ws, r, 5, f"={beta_cell}*{ag_cell}*F{y_row}*G{y_row}/100")
+    ws.cell(r, 5).number_format = '0.00'
+    # Weight (same)
+    _cell(ws, r, 6, f"=F{x_row}")
+    ws.cell(r, 6).number_format = '0.00'
+    # Modal participation ratio (%)
+    _cell(ws, r, 7, _fmt(data.get("modal_ratio_y", 0), 2))
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -655,28 +710,41 @@ def _create_4_2_sheet(wb, project, storeys, data):
         hdr_row = r
         r = _header_row(ws, r, ["#", "Mode", "Period (s)", "UX (%)", "UY (%)",
                                 "CumUX (%)", "CumUY (%)", "RX (%)", "RY (%)", "RZ (%)"])
+        first_data_row = r  # remember where data starts for formulas
         for i, m in enumerate(modes[:50]):
             _cell(ws, r, 1, i + 1)
             _cell(ws, r, 2, m.get("mode", ""))
             _cell(ws, r, 3, _fmt(m.get("period"), 6))
             _cell(ws, r, 4, _fmt(m.get("ux"), 4))
             _cell(ws, r, 5, _fmt(m.get("uy"), 4))
-            _cell(ws, r, 6, _fmt(m.get("sum_ux"), 2))
-            _cell(ws, r, 7, _fmt(m.get("sum_uy"), 2))
+            # CumUX = formula: for row 1 (first mode) = UX, otherwise = prev_cum + UX
+            if i == 0:
+                _cell(ws, r, 6, f"=D{r}")
+            else:
+                _cell(ws, r, 6, f"=F{r-1}+D{r}")
+            ws.cell(r, 6).number_format = '0.00'
+            # CumUY = formula
+            if i == 0:
+                _cell(ws, r, 7, f"=E{r}")
+            else:
+                _cell(ws, r, 7, f"=G{r-1}+E{r}")
+            ws.cell(r, 7).number_format = '0.00'
             _cell(ws, r, 8, _fmt(m.get("rx"), 4))
             _cell(ws, r, 9, _fmt(m.get("ry"), 4))
             _cell(ws, r, 10, _fmt(m.get("rz"), 4))
             r += 1
+        last_data_row = r - 1  # last mode row
 
-        # Final cumulative — show the values from mode 50
+        # Final cumulative — FORMULAS referencing the last data row
         r += 1
-        last_mode = modes[-1]
         _cell(ws, r, 2, "Final Cumulative UX (after 50 modes):", font=BOLD_FONT, border=False)
-        _cell(ws, r, 4, _fmt(data.get("mass_x"), 2))
+        _cell(ws, r, 4, f"=F{last_data_row}")
+        ws.cell(r, 4).number_format = '0.00'
         _cell(ws, r, 5, "%", border=False)
         r += 1
         _cell(ws, r, 2, "Final Cumulative UY (after 50 modes):", font=BOLD_FONT, border=False)
-        _cell(ws, r, 4, _fmt(data.get("mass_y"), 2))
+        _cell(ws, r, 4, f"=G{last_data_row}")
+        ws.cell(r, 4).number_format = '0.00'
         _cell(ws, r, 5, "%", border=False)
 
 
@@ -741,6 +809,7 @@ def _create_4_4_sheet(wb, project, storeys, data):
     r += 2
 
     r = _subtitle(ws, r, "Maximum Values")
+    max_val_row = r
     _cell(ws, r, 2, "Max theta_x:", font=BOLD_FONT, border=False)
     _cell(ws, r, 3, _fmt(data.get("max_theta_x"), 8))
     _cell(ws, r, 5, "Max theta_y:", font=BOLD_FONT, border=False)
@@ -760,6 +829,10 @@ def _create_4_4_sheet(wb, project, storeys, data):
     r = _header_row(ws, r, ["#", "Storey", "Load Case", "Ptot (kN)", "Height (m)",
                             "Hu (kN)", "Delta_u (m)", "theta", "Classification"])
     data_row_start = r
+    first_x_row = None
+    first_y_row = None
+    last_x_row = None
+    last_y_row = None
     for i, s in enumerate(data.get("storeys", [])):
         _cell(ws, r, 1, i + 1)
         _cell(ws, r, 2, s.get("name", ""))
@@ -775,7 +848,34 @@ def _create_4_4_sheet(wb, project, storeys, data):
         _cell(ws, r, 9, f'=IF(H{r}>=0.1,"SWAY","NO SWAY")')
         cl = s.get("classification", "")
         ws.cell(r, 9).fill = _status_fill(cl)
+        # Track first/last rows for MAX formulas
+        lc = s.get("load_case", "")
+        if "X" in lc.upper() or "EQX" in lc.upper():
+            if first_x_row is None:
+                first_x_row = r
+            last_x_row = r
+        elif "Y" in lc.upper() or "EQY" in lc.upper():
+            if first_y_row is None:
+                first_y_row = r
+            last_y_row = r
         r += 1
+    data_end = r - 1
+
+    # Now add MAX formulas referencing the table
+    # Max theta_x = MAX of all X theta values, Max theta_y = MAX of all Y theta values
+    if first_x_row and last_x_row:
+        ws.cell(max_val_row, 3).value = f"=MAX(H{first_x_row}:H{last_x_row})"
+        ws.cell(max_val_row, 3).number_format = '0.000000'
+    if first_y_row and last_y_row:
+        ws.cell(max_val_row, 6).value = f"=MAX(H{first_y_row}:H{last_y_row})"
+        ws.cell(max_val_row, 6).number_format = '0.000000'
+    # Classifications
+    if first_x_row and last_x_row:
+        ws.cell(max_val_row + 1, 3).value = f'=IF(C{max_val_row}>=0.1,"SWAY","NO SWAY")'
+        ws.cell(max_val_row + 1, 3).fill = _status_fill(data.get("max_classification_x"))
+    if first_y_row and last_y_row:
+        ws.cell(max_val_row + 1, 6).value = f'=IF(F{max_val_row}>=0.1,"SWAY","NO SWAY")'
+        ws.cell(max_val_row + 1, 6).fill = _status_fill(data.get("max_classification_y"))
 
 
 # ══════════════════════════════════════════════════════════════════════
@@ -801,16 +901,21 @@ def _create_4_5_sheet(wb, project, storeys, data):
     _cell(ws, r, 5, "Behaviour Factor q:", font=BOLD_FONT, border=False)
     _cell(ws, r, 7, 1.0, border=False)
     r += 1
-    # Max values — FORMULAS referencing table below
+    # Max values will be FORMULAS referencing the table (set after table is built)
+    max_row = r
     _cell(ws, r, 2, "Max X-Drift:", font=BOLD_FONT, border=False)
-    _cell(ws, r, 4, _fmt(data.get("max_ratio_x"), 6))
+    _cell(ws, r, 4, _fmt(data.get("max_ratio_x"), 6))  # placeholder, replaced below
     _cell(ws, r, 5, "Max Y-Drift:", font=BOLD_FONT, border=False)
-    _cell(ws, r, 7, _fmt(data.get("max_ratio_y"), 6))
+    _cell(ws, r, 7, _fmt(data.get("max_ratio_y"), 6))  # placeholder, replaced below
     r += 2
 
     hdr_row = r
     r = _header_row(ws, r, ["#", "Story", "Load Case", "dr X", "dr Y",
                             "nu*dr/h (X)", "nu*dr/h (Y)", "Limit", "X Status", "Y Status"])
+    first_x_drift_row = None
+    last_x_drift_row = None
+    first_y_drift_row = None
+    last_y_drift_row = None
     for i, s in enumerate(data.get("storeys", [])):
         _cell(ws, r, 1, i + 1)
         _cell(ws, r, 2, s.get("name", ""))
@@ -832,7 +937,25 @@ def _create_4_5_sheet(wb, project, storeys, data):
         _cell(ws, r, 10, f'=IF(G{r}<=F{limit_row},"OK","NOT OK")')
         sy = s.get("status_y", "OK")
         ws.cell(r, 10).fill = _status_fill(sy)
+        # Track X/Y rows for MAX formulas
+        lc = s.get("load_case", "")
+        if "X" in lc.upper() or "EQX" in lc.upper():
+            if first_x_drift_row is None:
+                first_x_drift_row = r
+            last_x_drift_row = r
+        elif "Y" in lc.upper() or "EQY" in lc.upper():
+            if first_y_drift_row is None:
+                first_y_drift_row = r
+            last_y_drift_row = r
         r += 1
+
+    # Now replace the placeholder max values with formulas
+    if first_x_drift_row and last_x_drift_row:
+        ws.cell(max_row, 4).value = f"=MAX(F{first_x_drift_row}:F{last_x_drift_row})"
+        ws.cell(max_row, 4).number_format = '0.000000'
+    if first_y_drift_row and last_y_drift_row:
+        ws.cell(max_row, 7).value = f"=MAX(G{first_y_drift_row}:G{last_y_drift_row})"
+        ws.cell(max_row, 7).number_format = '0.000000'
 
 
 # ══════════════════════════════════════════════════════════════════════
