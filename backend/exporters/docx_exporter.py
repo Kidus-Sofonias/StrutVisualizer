@@ -67,7 +67,7 @@ def _style_document(doc):
         st.font.bold = True
         st.font.color.rgb = RGBColor.from_string(BLUE)
         st.paragraph_format.space_before = Pt(8)
-        st.paragraph.format.space_after = Pt(5)
+        st.paragraph_format.space_after = Pt(5)
 
 
 def _add_table(doc, headers, rows, col_widths=None):
