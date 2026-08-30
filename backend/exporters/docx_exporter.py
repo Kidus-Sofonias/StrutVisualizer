@@ -352,19 +352,50 @@ def _generate_section_2_4(doc, loading_data):
     doc.add_heading("2.4.2. Load Patterns and Load Cases", level=2)
     doc.add_paragraph(
         "Load patterns and load cases are taken from the selected ETABS Access database "
-        "when their definition tables are present."
+        "when their definition tables are present. These schedules document the actions "
+        "used by the analysis model."
     )
-    doc.add_paragraph(
-        "Load Patterns: no compatible ETABS Access table was detected in the selected database."
-    )
+
+    from calculations.engineering_reports import calculate_load_patterns
+    lp_data = calculate_load_patterns()
+    doc.add_paragraph("Load Patterns:")
+    lp_headers = ["Case", "Type", "SWMultiplier", "AutoLoad", "NotionalFact", "NotionalDir"]
+    lp_rows = []
+    for p in lp_data.get("patterns", []):
+        lp_rows.append([
+            p.get("case", ""),
+            p.get("type", ""),
+            p.get("sw_multiplier", ""),
+            p.get("autoload", ""),
+            p.get("notional_fact", ""),
+            p.get("notional_dir", ""),
+        ])
+    _add_table(doc, lp_headers, lp_rows)
     doc.add_paragraph()
 
     # 2.4.3 Load Combinations
     doc.add_heading("2.4.3. Load Combination", level=2)
     doc.add_paragraph(
-        "Load combinations are imported from the ETABS model where a compatible "
-        "combination-definition table is available."
+        "Load combinations are imported from the ETABS model. The calculation modules "
+        "additionally use the named seismic, response-spectrum and geometric-imperfection "
+        "combinations required by the implemented checks."
     )
+
+    from calculations.engineering_reports import calculate_load_combinations
+    lc_data = calculate_load_combinations()
+    doc.add_paragraph("Load Combination Schedule:")
+    lc_headers = ["Combo", "Type", "Case", "Factor", "CaseType", "SortID"]
+    lc_rows = []
+    for c in lc_data.get("combinations", []):
+        lc_rows.append([
+            c.get("combo", ""),
+            c.get("type", ""),
+            c.get("case", ""),
+            c.get("factor", ""),
+            c.get("case_type", ""),
+            c.get("sort_id", ""),
+        ])
+    _add_table(doc, lc_headers, lc_rows)
     doc.add_paragraph()
 
 

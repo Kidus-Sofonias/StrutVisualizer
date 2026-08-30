@@ -379,3 +379,118 @@ def get_geometric_imperfection_options() -> Dict:
             {"parameter": "Inclination θi", "discussion": "θi = θ0 × αh × αm."},
         ],
     }
+
+
+def calculate_load_patterns() -> Dict:
+    """Section 2.4.2 — Load Patterns from ETABS model.
+
+    Returns the load patterns used in the ETABS analysis model.
+    These are the standard patterns for the Bahru Model 1-3 project.
+    """
+    patterns = [
+        {"case": "DEAD", "type": "DEAD", "sw_multiplier": "1.0", "autoload": "", "notional_fact": "-", "notional_dir": "-"},
+        {"case": "WALL", "type": "DEAD", "sw_multiplier": "0.0", "autoload": "", "notional_fact": "-", "notional_dir": "-"},
+        {"case": "LIVECATA", "type": "LIVE", "sw_multiplier": "0.0", "autoload": "", "notional_fact": "-", "notional_dir": "-"},
+        {"case": "LIVECATC", "type": "LIVE", "sw_multiplier": "0.0", "autoload": "", "notional_fact": "-", "notional_dir": "-"},
+        {"case": "LIVECATD", "type": "LIVE", "sw_multiplier": "0.0", "autoload": "", "notional_fact": "-", "notional_dir": "-"},
+        {"case": "LIVECATF", "type": "LIVE", "sw_multiplier": "0.0", "autoload": "", "notional_fact": "-", "notional_dir": "-"},
+        {"case": "LIVECATE", "type": "LIVE", "sw_multiplier": "0.0", "autoload": "", "notional_fact": "-", "notional_dir": "-"},
+        {"case": "EQX", "type": "QUAKE", "sw_multiplier": "0.0", "autoload": "EUROCODE8 2004", "notional_fact": "-", "notional_dir": "-"},
+        {"case": "EQY", "type": "QUAKE", "sw_multiplier": "0.0", "autoload": "EUROCODE8 2004", "notional_fact": "-", "notional_dir": "-"},
+        {"case": "EQXN", "type": "QUAKE", "sw_multiplier": "0.0", "autoload": "EUROCODE8 2004", "notional_fact": "-", "notional_dir": "-"},
+        {"case": "EQYN", "type": "QUAKE", "sw_multiplier": "0.0", "autoload": "EUROCODE8 2004", "notional_fact": "-", "notional_dir": "-"},
+        {"case": "GIXDEAD", "type": "NOTIONAL", "sw_multiplier": "0.0", "autoload": "DEAD", "notional_fact": "0.005", "notional_dir": "X"},
+        {"case": "GIYDEAD", "type": "NOTIONAL", "sw_multiplier": "0.0", "autoload": "DEAD", "notional_fact": "0.005", "notional_dir": "Y"},
+        {"case": "GIXWALL", "type": "NOTIONAL", "sw_multiplier": "0.0", "autoload": "WALL", "notional_fact": "0.005", "notional_dir": "X"},
+        {"case": "GIYWALL", "type": "NOTIONAL", "sw_multiplier": "0.0", "autoload": "WALL", "notional_fact": "0.005", "notional_dir": "Y"},
+        {"case": "GIXLIVECATA", "type": "NOTIONAL", "sw_multiplier": "0.0", "autoload": "LIVECATA", "notional_fact": "0.005", "notional_dir": "X"},
+        {"case": "GIYLIVECATA", "type": "NOTIONAL", "sw_multiplier": "0.0", "autoload": "LIVECATA", "notional_fact": "0.005", "notional_dir": "Y"},
+        {"case": "GIXLIVECATC", "type": "NOTIONAL", "sw_multiplier": "0.0", "autoload": "LIVECATC", "notional_fact": "0.005", "notional_dir": "X"},
+        {"case": "GIYLIVECATC", "type": "NOTIONAL", "sw_multiplier": "0.0", "autoload": "LIVECATC", "notional_fact": "0.005", "notional_dir": "Y"},
+        {"case": "GIXLIVECATD", "type": "NOTIONAL", "sw_multiplier": "0.0", "autoload": "LIVECATD", "notional_fact": "0.005", "notional_dir": "X"},
+        {"case": "GIYLIVECATD", "type": "NOTIONAL", "sw_multiplier": "0.0", "autoload": "LIVECATD", "notional_fact": "0.005", "notional_dir": "Y"},
+        {"case": "GIXLIVECATF", "type": "NOTIONAL", "sw_multiplier": "0.0", "autoload": "LIVECATF", "notional_fact": "0.005", "notional_dir": "X"},
+        {"case": "GIYLIVECATF", "type": "NOTIONAL", "sw_multiplier": "0.0", "autoload": "LIVECATF", "notional_fact": "0.005", "notional_dir": "Y"},
+        {"case": "GIXLIVECATE", "type": "NOTIONAL", "sw_multiplier": "0.0", "autoload": "LIVECATE", "notional_fact": "0.005", "notional_dir": "X"},
+        {"case": "GIYLIVECATE", "type": "NOTIONAL", "sw_multiplier": "0.0", "autoload": "LIVECATE", "notional_fact": "0.005", "notional_dir": "Y"},
+        {"case": "UL1", "type": "QUAKE", "sw_multiplier": "0.0", "autoload": "USER_LOADS", "notional_fact": "-", "notional_dir": "-"},
+        {"case": "UL2", "type": "QUAKE", "sw_multiplier": "0.0", "autoload": "USER_LOADS", "notional_fact": "-", "notional_dir": "-"},
+        {"case": "UL3", "type": "QUAKE", "sw_multiplier": "0.0", "autoload": "USER_LOADS", "notional_fact": "-", "notional_dir": "-"},
+    ]
+    return {"patterns": patterns}
+
+
+def calculate_load_combinations() -> Dict:
+    """Section 2.4.3 — Load Combinations from ETABS model.
+
+    Returns the load combinations used in the seismic analysis.
+    These are the standard combinations for the Bahru Model 1-3 project.
+    """
+    combos = [
+        # SESMASSX
+        {"combo": "SESMASSX", "type": "ADD", "case": "DEAD", "factor": "1.0", "case_type": "Static", "sort_id": "1"},
+        {"combo": "SESMASSX", "type": "-", "case": "LIVECATA", "factor": "0.24", "case_type": "Static", "sort_id": "2"},
+        {"combo": "SESMASSX", "type": "-", "case": "WALL", "factor": "1.0", "case_type": "Static", "sort_id": "3"},
+        {"combo": "SESMASSX", "type": "-", "case": "LIVECATD", "factor": "0.6", "case_type": "Static", "sort_id": "4"},
+        {"combo": "SESMASSX", "type": "-", "case": "LIVECATF", "factor": "0.6", "case_type": "Static", "sort_id": "5"},
+        {"combo": "SESMASSX", "type": "-", "case": "LIVECATC", "factor": "0.48", "case_type": "Static", "sort_id": "6"},
+        # SESMASSY
+        {"combo": "SESMASSY", "type": "ADD", "case": "DEAD", "factor": "1.0", "case_type": "Static", "sort_id": "7"},
+        {"combo": "SESMASSY", "type": "-", "case": "LIVECATA", "factor": "0.24", "case_type": "Static", "sort_id": "8"},
+        {"combo": "SESMASSY", "type": "-", "case": "WALL", "factor": "1.0", "case_type": "Static", "sort_id": "9"},
+        {"combo": "SESMASSY", "type": "-", "case": "LIVECATD", "factor": "0.6", "case_type": "Static", "sort_id": "10"},
+        {"combo": "SESMASSY", "type": "-", "case": "LIVECATF", "factor": "0.6", "case_type": "Static", "sort_id": "11"},
+        {"combo": "SESMASSY", "type": "-", "case": "LIVECATC", "factor": "0.48", "case_type": "Static", "sort_id": "12"},
+        # SESIMPX
+        {"combo": "SESIMPX", "type": "ADD", "case": "GIXDEAD", "factor": "1.0", "case_type": "Static", "sort_id": "13"},
+        {"combo": "SESIMPX", "type": "-", "case": "GIXLIVECATA", "factor": "0.24", "case_type": "Static", "sort_id": "14"},
+        {"combo": "SESIMPX", "type": "-", "case": "GIXWALL", "factor": "1.0", "case_type": "Static", "sort_id": "15"},
+        {"combo": "SESIMPX", "type": "-", "case": "GIXLIVECATD", "factor": "0.6", "case_type": "Static", "sort_id": "16"},
+        {"combo": "SESIMPX", "type": "-", "case": "GIXLIVECATC", "factor": "0.48", "case_type": "Static", "sort_id": "17"},
+        {"combo": "SESIMPX", "type": "-", "case": "GIXLIVECATF", "factor": "0.6", "case_type": "Static", "sort_id": "18"},
+        # SESIMPY
+        {"combo": "SESIMPY", "type": "ADD", "case": "GIYDEAD", "factor": "1.0", "case_type": "Static", "sort_id": "19"},
+        {"combo": "SESIMPY", "type": "-", "case": "GIYLIVECATA", "factor": "0.24", "case_type": "Static", "sort_id": "20"},
+        {"combo": "SESIMPY", "type": "-", "case": "GIYWALL", "factor": "1.0", "case_type": "Static", "sort_id": "21"},
+        {"combo": "SESIMPY", "type": "-", "case": "GIYLIVECATD", "factor": "0.6", "case_type": "Static", "sort_id": "22"},
+        {"combo": "SESIMPY", "type": "-", "case": "GIYLIVECATC", "factor": "0.48", "case_type": "Static", "sort_id": "23"},
+        {"combo": "SESIMPY", "type": "-", "case": "GIYLIVECATF", "factor": "0.6", "case_type": "Static", "sort_id": "24"},
+        # SLS
+        {"combo": "SLS", "type": "ADD", "case": "DEAD", "factor": "1.0", "case_type": "Static", "sort_id": "25"},
+        {"combo": "SLS", "type": "-", "case": "LIVECATA", "factor": "1.0", "case_type": "Static", "sort_id": "26"},
+        {"combo": "SLS", "type": "-", "case": "WALL", "factor": "1.0", "case_type": "Static", "sort_id": "27"},
+        {"combo": "SLS", "type": "-", "case": "LIVECATD", "factor": "1.0", "case_type": "Static", "sort_id": "28"},
+        # GRAVMASS
+        {"combo": "GRAVMASS", "type": "ADD", "case": "DEAD", "factor": "1.35", "case_type": "Static", "sort_id": "29"},
+        {"combo": "GRAVMASS", "type": "-", "case": "LIVECATA", "factor": "1.5", "case_type": "Static", "sort_id": "30"},
+        {"combo": "GRAVMASS", "type": "-", "case": "WALL", "factor": "1.35", "case_type": "Static", "sort_id": "31"},
+        {"combo": "GRAVMASS", "type": "-", "case": "LIVECATD", "factor": "1.5", "case_type": "Static", "sort_id": "32"},
+        {"combo": "GRAVMASS", "type": "-", "case": "LIVECATF", "factor": "1.5", "case_type": "Static", "sort_id": "33"},
+        # GRAVIMPX
+        {"combo": "GRAVIMPX", "type": "ADD", "case": "GIXDEAD", "factor": "1.35", "case_type": "Static", "sort_id": "34"},
+        {"combo": "GRAVIMPX", "type": "-", "case": "GIXLIVECATA", "factor": "1.5", "case_type": "Static", "sort_id": "35"},
+        {"combo": "GRAVIMPX", "type": "-", "case": "GIXWALL", "factor": "1.35", "case_type": "Static", "sort_id": "36"},
+        {"combo": "GRAVIMPX", "type": "-", "case": "GIXLIVECATD", "factor": "1.5", "case_type": "Static", "sort_id": "37"},
+        {"combo": "GRAVIMPX", "type": "-", "case": "GIXLIVECATC", "factor": "1.5", "case_type": "Static", "sort_id": "38"},
+        {"combo": "GRAVIMPX", "type": "-", "case": "GIXLIVECATF", "factor": "1.5", "case_type": "Static", "sort_id": "39"},
+        # GRAVIMPY
+        {"combo": "GRAVIMPY", "type": "ADD", "case": "GIYDEAD", "factor": "1.35", "case_type": "Static", "sort_id": "40"},
+        {"combo": "GRAVIMPY", "type": "-", "case": "GIYLIVECATA", "factor": "1.5", "case_type": "Static", "sort_id": "41"},
+        {"combo": "GRAVIMPY", "type": "-", "case": "GIYWALL", "factor": "1.35", "case_type": "Static", "sort_id": "42"},
+        {"combo": "GRAVIMPY", "type": "-", "case": "GIYLIVECATD", "factor": "1.5", "case_type": "Static", "sort_id": "43"},
+        {"combo": "GRAVIMPY", "type": "-", "case": "GIYLIVECATC", "factor": "1.5", "case_type": "Static", "sort_id": "44"},
+        {"combo": "GRAVIMPY", "type": "-", "case": "GIYLIVECATF", "factor": "1.5", "case_type": "Static", "sort_id": "45"},
+        # COGRAVX1
+        {"combo": "COGRAVX1", "type": "ADD", "case": "GRAVMASS", "factor": "1.0", "case_type": "Combo", "sort_id": "46"},
+        {"combo": "COGRAVX1", "type": "-", "case": "GRAVIMPX", "factor": "1.0", "case_type": "Combo", "sort_id": "47"},
+        # COGRAVX2
+        {"combo": "COGRAVX2", "type": "ADD", "case": "GRAVMASS", "factor": "1.0", "case_type": "Combo", "sort_id": "48"},
+        {"combo": "COGRAVX2", "type": "-", "case": "GRAVIMPX", "factor": "-1.0", "case_type": "Combo", "sort_id": "49"},
+        # COGRAVY1
+        {"combo": "COGRAVY1", "type": "ADD", "case": "GRAVMASS", "factor": "1.0", "case_type": "Combo", "sort_id": "50"},
+        {"combo": "COGRAVY1", "type": "-", "case": "GRAVIMPY", "factor": "1.0", "case_type": "Combo", "sort_id": "51"},
+        # COGRAVY2
+        {"combo": "COGRAVY2", "type": "ADD", "case": "GRAVMASS", "factor": "1.0", "case_type": "Combo", "sort_id": "52"},
+        {"combo": "COGRAVY2", "type": "-", "case": "GRAVIMPY", "factor": "-1.0", "case_type": "Combo", "sort_id": "53"},
+    ]
+    return {"combinations": combos}

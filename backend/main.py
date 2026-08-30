@@ -747,6 +747,20 @@ async def get_concrete_cover():
     return calculate_concrete_cover()
 
 
+@app.get("/api/load-patterns")
+async def get_load_patterns():
+    """Return the ETABS load patterns (Section 2.4.2)."""
+    from calculations.engineering_reports import calculate_load_patterns
+    return calculate_load_patterns()
+
+
+@app.get("/api/load-combinations")
+async def get_load_combinations():
+    """Return the ETABS load combinations (Section 2.4.3)."""
+    from calculations.engineering_reports import calculate_load_combinations
+    return calculate_load_combinations()
+
+
 @app.post("/api/behavior-factor")
 async def update_behavior_factor(req: BehaviorFactorRequest):
     """Update the behavior factor q (Section 3.4) and recalculate."""
