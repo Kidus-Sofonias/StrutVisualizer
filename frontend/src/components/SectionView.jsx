@@ -5,7 +5,7 @@ import {
   Chart as ChartJS, CategoryScale, LinearScale, PointElement,
   LineElement, BarElement, Title, Tooltip, Legend, Filler,
 } from 'chart.js'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { engineeringText } from '../data/engineeringText'
 import { displacementXBarChart, displacementYBarChart } from '../config/chartConfig'
 
@@ -13,6 +13,16 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarEleme
 
 /* ── Section metadata ─────────────────────────────────────────────────── */
 const sectionMeta = {
+  '2.4': {
+    title: '2.4 — Loading Schedule',
+    subtitle: 'Worksheet 2.4 Loading Groups',
+    description: 'Permanent, imposed and seismic actions per floor group with dead load components, live load category, and seismic combination.',
+  },
+  '2.5': {
+    title: '2.5 — Concrete Cover Check',
+    subtitle: 'Worksheet 2.5 Bond-Cover Logic',
+    description: 'Member-by-member concrete cover verification against Eurocode 2 bond and durability requirements.',
+  },
   '3.3': {
     title: '3.3 — Building System Classification',
     subtitle: 'Lateral Force Participation Ratio',
@@ -300,6 +310,69 @@ function DataTable({ headers, rows }) {
           ))}
         </tbody>
       </table>
+    </div>
+  )
+}
+
+/* ── Section 2.4 ──────────────────────────────────────────────────────── */
+function Section24({ data }) {
+  if (!data) return <EmptySection />
+  const schedule = data.schedule || []
+  return (
+    <div>
+      <SectionHeader meta={sectionMeta['2.4']} />
+      <FormulaBlock sectionKey="2.4" />
+      <EngineeringText sectionKey="2.4" />
+      <div className="data-grid" style={{ marginBottom: 20 }}>
+        <InfoCard label="Code Reference" value={data.code_reference} />
+      </div>
+      <DataTable
+        headers={['Floor Group', 'Occupancy', 'Dead (kN/m²)', 'Live (kN/m²)', 'ψE', 'Factored Live', 'Seismic Total']}
+        rows={schedule.map(s => [
+          s.floor_group,
+          s.occupancy,
+          s.total_dead_knm2?.toFixed(2),
+          s.live_knm2?.toFixed(2),
+          s.psi_e?.toFixed(2),
+          s.factored_live_knm2?.toFixed(2),
+          { text: s.seismic_total_knm2?.toFixed(4), highlight: true },
+        ])}
+      />
+    </div>
+  )
+}
+
+/* ── Section 2.5 ──────────────────────────────────────────────────────── */
+function Section25({ data }) {
+  if (!data) return <EmptySection />
+  return (
+    <div>
+      <SectionHeader meta={sectionMeta['2.5']} />
+      <FormulaBlock sectionKey="2.5" />
+      <EngineeringText sectionKey="2.5" />
+      <div className="data-grid" style={{ marginBottom: 20 }}>
+        <InfoCard label="Aggregate Size" value={data.aggregate_size} />
+        <InfoCard label="Structural Class" value={data.structural_class} />
+        <InfoCard label="Code Reference" value={data.code_reference} />
+      </div>
+      <div className="formula-box" style={{ marginBottom: 16 }}>
+        <div className="formula">Cmin = max(Cmin,bond, Cmin,dur, 10mm); Cnom = Cmin + Cdev</div>
+        <div className="description">{data.description}</div>
+      </div>
+      <DataTable
+        headers={['Group', 'Member', 'Cmin,bond', 'Cmin,dur', 'Cmin', 'Cdev', 'Cnom', 'Selected', 'Status']}
+        rows={(data.rows || []).map(r => [
+          r.group,
+          r.member,
+          r.cmin_bond?.toFixed(0),
+          r.cmin_dur?.toFixed(0),
+          { text: r.cmin?.toFixed(0), highlight: true },
+          r.cdev?.toFixed(0),
+          r.cnom_calculated?.toFixed(0),
+          r.selected_cover?.toFixed(0),
+          { text: r.status, status: true },
+        ])}
+      />
     </div>
   )
 }
@@ -669,13 +742,30 @@ function EmptySection() {
 }
 
 /* ── Main SectionView ─────────────────────────────────────────────────── */
+const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
+function useStandaloneData(section) {
+  const [data, setData] = useState(null)
+  useEffect(() => {
+    if (section === '2.4') {
+      fetch(`${API}/api/loading-schedule`).then(r => r.json()).then(setData).catch(() => {})
+    } else if (section === '2.5') {
+      fetch(`${API}/api/concrete-cover`).then(r => r.json()).then(setData).catch(() => {})
+    }
+  }, [section])
+  return data
+}
+
 export default function SectionView({ section, project }) {
-  const data = project?.sections?.[section]
+  const standaloneData = useStandaloneData(section)
+  const data = section === '2.4' || section === '2.5' ? standaloneData : project?.sections?.[section]
 
   const fade = { initial: { opacity: 0, y: 16 }, animate: { opacity: 1, y: 0 } }
 
   return (
     <motion.div {...fade} key={section}>
+      {section === '2.4' && <Section24 data={data} />}
+      {section === '2.5' && <Section25 data={data} />}
       {section === '3.3' && <Section33 data={data} />}
       {section === '3.4' && <Section34 data={data} />}
       {section === '4.1' && <Section41 data={data} />}

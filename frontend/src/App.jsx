@@ -220,6 +220,8 @@ function App() {
   useEffect(() => { loadProjects() }, [loadProjects])
 
   const sections = [
+    { id: '2.4', label: '2.4', name: 'Loading' },
+    { id: '2.5', label: '2.5', name: 'Cover' },
     { id: '3.2', label: '3.2', name: 'Regularity' },
     { id: '3.3', label: '3.3', name: 'Classification' },
     { id: '3.4', label: '3.4', name: 'q-Factor' },

@@ -698,6 +698,210 @@ async def delete_project(project_id: str):
     return {"status": "deleted", "project_id": project_id}
 
 
+# ─── Engineering Report Sections (2.4, 2.5, 3.3 enhanced) ──────────────────
+
+class BehaviorFactorRequest(BaseModel):
+    building_type: str = "Multi-Storey Multi-Bay Frame"
+    regularity: str = "Irregular"
+    kw: float = 1.0
+
+class SeismicParamsRequest(BaseModel):
+    city: str = "Addis Ababa"
+    spectrum_basis: str = "Envelope (Workbook)"
+    ground_type: str = "B"
+    importance_class: str = "II — Ordinary building"
+
+class GeometricImperfectionRequest(BaseModel):
+    member_count: float = 22.0
+
+
+@app.get("/api/engineering-options")
+async def get_engineering_options():
+    """Return all configurable engineering parameters for the UI."""
+    from calculations.engineering_reports import (
+        get_seismic_options, get_geometric_imperfection_options,
+        BEHAVIOR_Q0_TABLE,
+    )
+    return {
+        "seismic": get_seismic_options(),
+        "geometric": get_geometric_imperfection_options(),
+        "behavior": {
+            "building_types": list(BEHAVIOR_Q0_TABLE.keys()),
+            "regularity_types": ["Regular", "Irregular in Plan", "Irregular in Elevation", "Irregular"],
+            "q0_table": BEHAVIOR_Q0_TABLE,
+        },
+    }
+
+
+@app.get("/api/loading-schedule")
+async def get_loading_schedule():
+    """Return the current loading schedule (Section 2.4)."""
+    from calculations.engineering_reports import calculate_loading_schedule
+    return calculate_loading_schedule()
+
+
+@app.get("/api/concrete-cover")
+async def get_concrete_cover():
+    """Return the concrete cover check (Section 2.5)."""
+    from calculations.engineering_reports import calculate_concrete_cover
+    return calculate_concrete_cover()
+
+
+@app.post("/api/behavior-factor")
+async def update_behavior_factor(req: BehaviorFactorRequest):
+    """Update the behavior factor q (Section 3.4) and recalculate."""
+    if not projects_store:
+        raise HTTPException(400, "No project loaded")
+    pid = list(projects_store.keys())[-1]
+    project = projects_store[pid]["project"]
+    ext_data = projects_store[pid].get("ext_data", {})
+
+    from calculations.engineering_reports import calculate_behavior_factor
+    from calculations.engine_extended import (
+        calculate_section_3_3, calculate_section_3_4, calculate_section_4_1,
+        calculate_section_4_2, calculate_section_4_3, calculate_section_4_4,
+        calculate_section_4_5, calculate_section_4_6,
+    )
+
+    sections = {}
+    sections["3.3"] = calculate_section_3_3(project, ext_data)
+    sections["3.4"] = calculate_behavior_factor(
+        sections["3.3"],
+        building_type=req.building_type,
+        regularity=req.regularity,
+        kw=req.kw,
+    )
+    sections["4.2"] = calculate_section_4_2(ext_data)
+    ext_data["section_4_2"] = sections["4.2"]
+    sections["4.1"] = calculate_section_4_1(project, sections["3.4"], ext_data)
+    sections["4.3"] = calculate_section_4_3(project, ext_data)
+    q_val = sections.get("3.4", {}).get("q", 2.76)
+    sections["4.4"] = calculate_section_4_4(project, ext_data, q=q_val)
+    sections["4.5"] = calculate_section_4_5(project, ext_data)
+    sections["4.6"] = calculate_section_4_6(project, sections.get("4.1", {}), ext_data, q=q_val)
+
+    projects_store[pid]["sections"] = sections
+
+    return {
+        "status": "success",
+        "q": sections["3.4"].get("q"),
+        "building_type": req.building_type,
+        "regularity": req.regularity,
+        "kw": req.kw,
+    }
+
+
+@app.post("/api/seismic-parameters")
+async def update_seismic_parameters(req: SeismicParamsRequest):
+    """Update seismic parameters (Section 4.1) and recalculate."""
+    if not projects_store:
+        raise HTTPException(400, "No project loaded")
+    pid = list(projects_store.keys())[-1]
+    project = projects_store[pid]["project"]
+    ext_data = projects_store[pid].get("ext_data", {})
+
+    from calculations.engine_extended import (
+        calculate_section_3_3, calculate_section_3_4, calculate_section_4_1,
+        calculate_section_4_2, calculate_section_4_3, calculate_section_4_4,
+        calculate_section_4_5, calculate_section_4_6,
+    )
+
+    sections = {}
+    sections["3.3"] = calculate_section_3_3(project, ext_data)
+    sections["3.4"] = calculate_section_3_4(project, sections["3.3"])
+    sections["4.2"] = calculate_section_4_2(ext_data)
+    ext_data["section_4_2"] = sections["4.2"]
+    # Store seismic selection for 4.1
+    ext_data["seismic_selection"] = {
+        "city": req.city,
+        "spectrum_basis": req.spectrum_basis,
+        "ground_type": req.ground_type,
+        "importance_class": req.importance_class,
+    }
+    sections["4.1"] = calculate_section_4_1(project, sections["3.4"], ext_data)
+    sections["4.3"] = calculate_section_4_3(project, ext_data)
+    q_val = sections.get("3.4", {}).get("q", 2.76)
+    sections["4.4"] = calculate_section_4_4(project, ext_data, q=q_val)
+    sections["4.5"] = calculate_section_4_5(project, ext_data)
+    sections["4.6"] = calculate_section_4_6(project, sections.get("4.1", {}), ext_data, q=q_val)
+
+    projects_store[pid]["sections"] = sections
+
+    return {
+        "status": "success",
+        "city": req.city,
+        "ground_type": req.ground_type,
+        "weight_kN": sections["4.1"].get("total_weight_kN"),
+        "Fb_x": sections["4.1"].get("Fb_x"),
+        "Fb_y": sections["4.1"].get("Fb_y"),
+    }
+
+
+@app.post("/api/geometric-imperfection")
+async def update_geometric_imperfection(req: GeometricImperfectionRequest):
+    """Update geometric imperfection member count (Section 4.3) and recalculate."""
+    if not projects_store:
+        raise HTTPException(400, "No project loaded")
+    pid = list(projects_store.keys())[-1]
+    project = projects_store[pid]["project"]
+    ext_data = projects_store[pid].get("ext_data", {})
+
+    from calculations.engine_extended import (
+        calculate_section_3_3, calculate_section_3_4, calculate_section_4_1,
+        calculate_section_4_2, calculate_section_4_3, calculate_section_4_4,
+        calculate_section_4_5, calculate_section_4_6,
+    )
+
+    sections = {}
+    sections["3.3"] = calculate_section_3_3(project, ext_data)
+    sections["3.4"] = calculate_section_3_4(project, sections["3.3"])
+    sections["4.2"] = calculate_section_4_2(ext_data)
+    ext_data["section_4_2"] = sections["4.2"]
+    sections["4.1"] = calculate_section_4_1(project, sections["3.4"], ext_data)
+    sections["4.3"] = calculate_section_4_3(project, ext_data)
+    q_val = sections.get("3.4", {}).get("q", 2.76)
+    sections["4.4"] = calculate_section_4_4(project, ext_data, q=q_val)
+    sections["4.5"] = calculate_section_4_5(project, ext_data)
+    sections["4.6"] = calculate_section_4_6(project, sections.get("4.1", {}), ext_data, q=q_val)
+
+    projects_store[pid]["sections"] = sections
+
+    return {
+        "status": "success",
+        "member_count": req.member_count,
+        "theta_i": sections["4.3"].get("theta_i"),
+    }
+
+
+@app.post("/api/export-docx")
+async def export_docx():
+    """Export a DOCX structural design report."""
+    if not projects_store:
+        raise HTTPException(400, "No project loaded")
+    pid = list(projects_store.keys())[-1]
+    project = projects_store[pid]["project"]
+    sections = projects_store[pid].get("sections", {})
+    ext_data = projects_store[pid].get("ext_data", {})
+
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"{project.project_name}_Structural_Design_Report.docx"
+    output_path = EXPORTS_DIR / filename
+
+    try:
+        from exporters.docx_exporter import generate_docx_report
+        generate_docx_report(project, sections, ext_data, str(output_path))
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(500, f"DOCX export failed: {str(e)}")
+
+    return FileResponse(
+        path=str(output_path),
+        filename=filename,
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    )
+
+
 # ─── Run ─────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":

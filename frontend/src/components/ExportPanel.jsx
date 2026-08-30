@@ -1,7 +1,34 @@
+import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { FileSpreadsheet, FileText, Download } from 'lucide-react'
+import { FileSpreadsheet, FileText, Download, Loader2 } from 'lucide-react'
+
+const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 export default function ExportPanel({ project, onExport }) {
+  const [docxLoading, setDocxLoading] = useState(false)
+
+  const handleDocxExport = async () => {
+    setDocxLoading(true)
+    try {
+      const res = await fetch(`${API}/api/export-docx`, { method: 'POST' })
+      if (res.ok) {
+        const blob = await res.blob()
+        const url = window.URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `${project.project_name}_Structural_Design_Report.docx`
+        a.click()
+        window.URL.revokeObjectURL(url)
+      } else {
+        const err = await res.json()
+        alert(err.detail || 'DOCX export failed')
+      }
+    } catch (e) {
+      alert('DOCX export failed: ' + e.message)
+    }
+    setDocxLoading(false)
+  }
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 16 }}
@@ -50,7 +77,6 @@ export default function ExportPanel({ project, onExport }) {
           className="export-card"
           whileHover={{ y: -3 }}
           whileTap={{ scale: 0.98 }}
-          onClick={() => onExport('pdf')}
         >
           <div style={{
             width: 56, height: 56, borderRadius: 'var(--radius-lg)',
@@ -60,10 +86,38 @@ export default function ExportPanel({ project, onExport }) {
           }}>
             <FileText size={28} style={{ color: 'var(--accent)' }} />
           </div>
+          <h3>Word Report (DOCX)</h3>
+          <p>Professional engineering report with sections 2.4–4.6, tables, and conclusions</p>
+          <div style={{ marginTop: 18 }}>
+            <button
+              className="primary-btn"
+              style={{ width: '100%' }}
+              onClick={handleDocxExport}
+              disabled={docxLoading}
+            >
+              {docxLoading ? <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Generating...</> : <><Download size={16} /> Export .docx</>}
+            </button>
+          </div>
+        </motion.div>
+
+        <motion.div
+          className="export-card"
+          whileHover={{ y: -3 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => onExport('pdf')}
+        >
+          <div style={{
+            width: 56, height: 56, borderRadius: 'var(--radius-lg)',
+            background: 'var(--bg-subtle)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 4px',
+          }}>
+            <FileText size={28} style={{ color: 'var(--text-tertiary)' }} />
+          </div>
           <h3>PDF Report</h3>
           <p>Professional engineering report with tables and building summary</p>
           <div style={{ marginTop: 18 }}>
-            <button className="primary-btn" style={{ width: '100%' }}>
+            <button className="secondary-btn" style={{ width: '100%' }}>
               <Download size={16} />
               Export .pdf
             </button>
@@ -91,6 +145,17 @@ export default function ExportPanel({ project, onExport }) {
               'Table 3.2.7 — Storey Stiffness Y',
               'Table 3.2.8 — Mass Distribution',
               'Building-level classification',
+              'Section 2.4 — Loading Schedule',
+              'Section 2.5 — Concrete Cover Check',
+              'Section 3.3 — Lateral Force Classification',
+              'Section 3.4 — Behavioral Factor (q)',
+              'Section 4.1 — Base Shear',
+              'Section 4.2 — Modal Participation (50 modes)',
+              'Section 4.3 — Geometric Imperfection',
+              'Section 4.4 — Stability Analysis',
+              'Section 4.5 — Storey Drift Control',
+              'Section 4.6 — Overturning Check',
+              'Engineering Conclusion',
             ].map((item, i) => (
               <div key={i} style={{
                 padding: '8px 12px', background: 'var(--bg-subtle)',

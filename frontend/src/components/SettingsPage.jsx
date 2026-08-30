@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { Settings, Sun, Moon, FileText, Table, BarChart3, Download, RotateCcw, Weight, Info } from 'lucide-react'
+import { Settings, Sun, Moon, FileText, Table, BarChart3, Download, RotateCcw, Weight, Info, Sliders, MapPin, Building2, Calculator } from 'lucide-react'
 
 const DEFAULT_SETTINGS = {
   theme: 'light',
@@ -16,6 +16,82 @@ const DEFAULT_SETTINGS = {
   chartTooltips: true,
   storeySortOrder: 'top-down',
   autoRecalculate: false,
+}
+
+function BehaviorFactorSection() {
+  const [buildingType, setBuildingType] = useState('Multi-Storey Multi-Bay Frame')
+  const [regularity, setRegularity] = useState('Irregular')
+  const [kw, setKw] = useState('1.0')
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState('')
+  const [options, setOptions] = useState(null)
+  const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
+  useEffect(() => {
+    fetch(`${API}/api/engineering-options`)
+      .then(r => r.json())
+      .then(data => setOptions(data.behavior))
+      .catch(() => {})
+  }, [])
+
+  const handleApply = async () => {
+    setLoading(true)
+    setMessage('')
+    try {
+      const res = await fetch(`${API}/api/behavior-factor`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ building_type: buildingType, regularity, kw: parseFloat(kw) }),
+      })
+      const data = await res.json()
+      setMessage(`q = ${data.q?.toFixed(2) || '?'} (applied and recalculated)`)
+    } catch (e) {
+      setMessage('Error: ' + e.message)
+    }
+    setLoading(false)
+  }
+
+  return (
+    <div className="settings-section">
+      <h3><Building2 size={16} style={{ verticalAlign: -2, color: 'var(--accent)' }} /> Section 3.4 — Behavior Factor (q)</h3>
+      <div className="settings-row">
+        <div>
+          <div className="label">Building Type</div>
+          <div className="hint">Select the structural system type per Eurocode 8, Table 3.2</div>
+        </div>
+        <select value={buildingType} onChange={e => setBuildingType(e.target.value)} style={{ minWidth: 280 }}>
+          {(options?.building_types || ['Multi-Storey Multi-Bay Frame']).map(t => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </select>
+      </div>
+      <div className="settings-row">
+        <div>
+          <div className="label">Regularity</div>
+          <div className="hint">Plan and elevation regularity classification</div>
+        </div>
+        <select value={regularity} onChange={e => setRegularity(e.target.value)}>
+          {(options?.regularity_types || ['Regular', 'Irregular']).map(r => (
+            <option key={r} value={r}>{r}</option>
+          ))}
+        </select>
+      </div>
+      <div className="settings-row">
+        <div>
+          <div className="label">kw (Wall Factor)</div>
+          <div className="hint">Reduction factor for wall-governed systems (0.5–1.0)</div>
+        </div>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <input type="number" value={kw} onChange={e => setKw(e.target.value)} min="0.5" max="1.0" step="0.1"
+            style={{ width: 80, padding: '7px 12px', fontSize: 13, border: '1px solid var(--border-primary)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-subtle)', color: 'var(--text-primary)', fontFamily: "'JetBrains Mono', monospace" }} />
+          <button className="primary-btn" onClick={handleApply} disabled={loading} style={{ padding: '6px 16px', fontSize: 12 }}>
+            {loading ? 'Applying...' : 'Apply & Recalculate'}
+          </button>
+        </div>
+      </div>
+      {message && <div style={{ fontSize: 12, color: message.startsWith('Error') ? 'var(--red)' : 'var(--green)', padding: '4px 0' }}>{message}</div>}
+    </div>
+  )
 }
 
 function WeightOverrideSection() {
@@ -351,6 +427,9 @@ export default function SettingsPage({ settings, onUpdate }) {
           <Toggle value={local.autoRecalculate} onChange={(v) => update('autoRecalculate', v)} />
         </div>
       </div>
+
+      {/* Behavior Factor */}
+      <BehaviorFactorSection />
 
       {/* Engineering Parameters */}
       <WeightOverrideSection />

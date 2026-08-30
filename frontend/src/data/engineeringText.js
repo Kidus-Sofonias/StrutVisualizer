@@ -490,6 +490,56 @@ The safety factor accounts for:
 
 ES EN 1998-1-1:2015, §4.4.3.4`,
   },
+
+  '2.4': {
+    title: '2.4 — Loading Schedule',
+    subtitle: 'Worksheet 2.4 — Permanent, Imposed and Seismic Actions',
+    background: `The loading schedule defines the floor loads used in the structural analysis. Each floor group specifies permanent loads (plaster, screed, partition, finish) and imposed loads (live loads) according to the building use and occupancy category.
+
+The seismic mass combination uses: 1.0·G + 1.0·ψE·Q, where ψE is the seismic combination factor that reduces the live load contribution to seismic mass.
+
+Four typical floor groups are defined:
+- Basement: Category F (Car Parking)
+- Ground Floor: Category D (Shopping)
+- Apartment (1st–14th): Category A (Residential)
+- Utility/Water Tank: Category D`,
+    criteria: `ES EN 1991-1-1:2015, Table NA.1 — Recommended values of imposed loads
+ES EN 1998-1:2015, clause 3.2.4 — Seismic mass
+
+Permanent loads: Sum of plaster + screed + partition + finish
+Factored live load = live load × ψE
+Seismic total = Dead + ψE × Live`,
+  },
+
+  '2.5': {
+    title: '2.5 — Concrete Cover Check',
+    subtitle: 'Worksheet 2.5 — Bond-Cover Logic per Eurocode 2',
+    background: `Concrete cover is the distance between the surface of the reinforcement and the nearest concrete surface. It serves three purposes:
+
+1. Bond protection: Ensures adequate bond between reinforcement and concrete
+2. Durability protection: Protects reinforcement against corrosion from environmental exposure
+3. Fire resistance: Provides thermal insulation to reinforcement during fire
+
+The minimum cover (Cmin) is determined as:
+Cmin = max(Cmin,bond, Cmin,dur, 10mm)
+
+The nominal cover (Cnom) adds a construction allowance:
+Cnom = Cmin + Cdev
+
+where Cdev = 10mm is the typical construction tolerance.`,
+    criteria: `ES EN 1992-1-1:2015, clause 4.4 — Cover to reinforcement
+
+Bond requirements (Table 4.4N):
+- Slab: 12mm (aggregate < 32mm), 17mm (≥ 32mm)
+- Beam/Column/Wall/Foundation: 20mm (< 32mm), 25mm (≥ 32mm)
+
+Durability requirements:
+- XC1 exposure: 15mm min durability cover
+- XC2 exposure: 20mm min durability cover
+- Structural class S5 adds 10mm to base durability cover
+
+Construction tolerance Cdev = 10mm`,
+  },
 }
 
 export default engineeringText
