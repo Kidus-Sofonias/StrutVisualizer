@@ -197,6 +197,7 @@ def calculate_section_4_1(project: Project, section_3_4: Dict, ext_data: Dict) -
     ag = 0.1
     ground_type = "B"
     beta = 0.2
+    spectrum_type = 1
     
     spectral_params = {
         "A": {"S": 1.0, "TB": 0.05, "TC": 0.25, "TD": 1.2},
@@ -208,24 +209,31 @@ def calculate_section_4_1(project: Project, section_3_4: Dict, ext_data: Dict) -
     sp = spectral_params[ground_type]
     S, TB, TC, TD = sp["S"], sp["TB"], sp["TC"], sp["TD"]
     
-    T1x = 2.568
-    T1y = 2.808
+    # Get fundamental periods from modal analysis (section 4.2)
+    section_4_2 = ext_data.get("section_4_2") or {}
+    T1x = section_4_2.get("T1x", 2.568473)  # From ETABS modal analysis
+    T1y = section_4_2.get("T1y", 2.807803)  # From ETABS modal analysis
     
-    def sd_elastic(T):
-        plateau = ag * S * (2.0 / 3.0)
-        if T <= TB:
-            return plateau
-        elif T <= TC:
-            return plateau
-        elif T <= TD:
-            return plateau * (TC / T)
-        else:
-            return plateau * (TC * TD) / (T * T)
-    
+    # Eurocode 8 Design Spectrum Sd(T)
+    # Elastic response spectrum Sa(T):
+    #   0 <= T <= TB:  Sa = ag * S * (2/3 + T/TB * (5/2 - 2/3))
+    #   TB <= T <= TC:  Sa = ag * S * 5/2
+    #   TC <= T <= TD:  Sa = ag * S * 5/2 * TC/T
+    #   T > TD:        Sa = ag * S * 5/2 * TC*TD/T^2
+    # Design spectrum: Sd(T) = Sa(T) / q
+    # Lower bound: Sd(T) >= beta * ag
     def sd_design(T):
-        s = sd_elastic(T) / q
+        if T <= TB:
+            sa = ag * S * (2.0/3.0 + T / TB * (2.5 - 2.0/3.0))
+        elif T <= TC:
+            sa = ag * S * 2.5
+        elif T <= TD:
+            sa = ag * S * 2.5 * TC / T
+        else:
+            sa = ag * S * 2.5 * TC * TD / (T * T)
+        sd = sa / q
         lower_bound = beta * ag
-        return max(s, lower_bound)
+        return max(sd, lower_bound)
     
     Sd_x = sd_design(T1x)
     Sd_y = sd_design(T1y)
@@ -242,19 +250,27 @@ def calculate_section_4_1(project: Project, section_3_4: Dict, ext_data: Dict) -
         else:
             total_weight = sum(s.source_data.mass or 0 for s in project.get_storeys_sorted())
             W = total_weight * 9.81
-    lam = 1.0
     
-    Fb_x = Sd_x * W * lam
-    Fb_y = Sd_y * W * lam
+    # Lambda: correction factor for modal mass participation
+    # Lambda = 0.85 if >=90% mass participation in T1, else 1.0
+    # Per Excel: lambda = IF(T1 <= 2*TD, 0.85, 1.0)
+    lam_x = 0.85 if T1x <= 2 * TD else 1.0
+    lam_y = 0.85 if T1y <= 2 * TD else 1.0
     
-    lower_bound_x = beta * ag * W * lam
-    lower_bound_y = beta * ag * W * lam
+    # Base shear: Fb = Sd(T) * W * lambda
+    Fb_x = Sd_x * W * lam_x
+    Fb_y = Sd_y * W * lam_y
     
-    modal_ratio_x = 0.4987
-    modal_ratio_y = 0.5582
+    lower_bound_x = beta * ag * W
+    lower_bound_y = beta * ag * W
+    
+    # Get modal participation ratios from section 4.2 data
+    section_4_2_data = ext_data.get("section_4_2") or {}
+    modal_ratio_x = section_4_2_data.get("mass_x", 0.4987) / 100.0  # Convert % to fraction
+    modal_ratio_y = section_4_2_data.get("mass_y", 0.5582) / 100.0
     
     return {
-        "ag": ag, "ground_type": ground_type, "spectrum_type": 1,
+        "ag": ag, "ground_type": ground_type, "spectrum_type": spectrum_type,
         "beta": beta, "q": q,
         "S": S, "TB": TB, "TC": TC, "TD": TD,
         "T1x": T1x, "T1y": T1y,
@@ -262,10 +278,11 @@ def calculate_section_4_1(project: Project, section_3_4: Dict, ext_data: Dict) -
         "Sd_x_pct": round(Sd_x / ag * 100, 2) if ag else 0,
         "Sd_y_pct": round(Sd_y / ag * 100, 2) if ag else 0,
         "total_weight_kN": round(W, 2),
-        "lambda": lam,
+        "lambda_x": lam_x, "lambda_y": lam_y,
         "Fb_x": round(Fb_x, 2), "Fb_y": round(Fb_y, 2),
         "lower_bound_x": round(lower_bound_x, 2), "lower_bound_y": round(lower_bound_y, 2),
-        "modal_ratio_x": modal_ratio_x, "modal_ratio_y": modal_ratio_y,
+        "modal_ratio_x": round(modal_ratio_x * 100, 2),
+        "modal_ratio_y": round(modal_ratio_y * 100, 2),
         "description_x": f"Sd(T)x = {Sd_x:.4f}g = {Sd_x/ag*100:.1f}% x ag, Fb = {Fb_x:.2f} kN",
         "description_y": f"Sd(T)y = {Sd_y:.4f}g = {Sd_y/ag*100:.1f}% x ag, Fb = {Fb_y:.2f} kN",
     }

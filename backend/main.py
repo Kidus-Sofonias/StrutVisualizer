@@ -327,10 +327,14 @@ def _build_project_response(project):
     sections = {}
     if ext_data:
         try:
+            # 3.3 and 3.4 first
             sections["3.3"] = calculate_section_3_3(project, ext_data)
             sections["3.4"] = calculate_section_3_4(project, sections["3.3"])
-            sections["4.1"] = calculate_section_4_1(project, sections["3.4"], ext_data)
+            # 4.2 before 4.1 so modal data (T1x/T1y) is available for spectrum
             sections["4.2"] = calculate_section_4_2(ext_data)
+            # Store 4.2 data in ext_data so 4.1 can access T1x/T1y
+            ext_data["section_4_2"] = sections["4.2"]
+            sections["4.1"] = calculate_section_4_1(project, sections["3.4"], ext_data)
             sections["4.3"] = calculate_section_4_3(project, ext_data)
             q_val = sections.get("3.4", {}).get("q", 2.76)
             sections["4.4"] = calculate_section_4_4(project, ext_data, q=q_val)
@@ -619,8 +623,9 @@ async def set_weight_override(project_id: str, req: WeightOverrideRequest):
             sections = {}
             sections["3.3"] = calculate_section_3_3(project, ext_data)
             sections["3.4"] = calculate_section_3_4(project, sections["3.3"])
-            sections["4.1"] = calculate_section_4_1(project, sections["3.4"], ext_data)
             sections["4.2"] = calculate_section_4_2(ext_data)
+            ext_data["section_4_2"] = sections["4.2"]
+            sections["4.1"] = calculate_section_4_1(project, sections["3.4"], ext_data)
             sections["4.3"] = calculate_section_4_3(project, ext_data)
             q_val = sections.get("3.4", {}).get("q", 2.76)
             sections["4.4"] = calculate_section_4_4(project, ext_data, q=q_val)
