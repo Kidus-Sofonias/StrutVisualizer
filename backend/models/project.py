@@ -129,6 +129,7 @@ class Project:
     lmax: float = 33.5
     lmin: float = 22.5
     building_summary: str = ""
+    total_weight_override: Optional[float] = None  # Manual override for W in kN (Section 4.1)
     
     def get_storey_by_name(self, name: str) -> Optional[Storey]:
         for s in self.storeys:

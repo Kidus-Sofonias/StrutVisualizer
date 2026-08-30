@@ -230,15 +230,18 @@ def calculate_section_4_1(project: Project, section_3_4: Dict, ext_data: Dict) -
     Sd_x = sd_design(T1x)
     Sd_y = sd_design(T1y)
     
-    # Total building weight — use SESMASSX cumulative at base (includes all storeys)
-    # The original Excel uses 103268.09 kN which is the cumulative at base
-    axial = ext_data.get("axial_loads", {})
-    sesmassx = axial.get("SESMASSX", {})
-    if sesmassx:
-        W = max(sesmassx.values())
+    # Total building weight — use override if set, otherwise SESMASSX cumulative at base
+    # The original Excel uses 103268.09 kN (Base Reactions SUMIF), MDB gives ~100,925 kN
+    if project.total_weight_override and project.total_weight_override > 0:
+        W = project.total_weight_override
     else:
-        total_weight = sum(s.source_data.mass or 0 for s in project.get_storeys_sorted())
-        W = total_weight * 9.81
+        axial = ext_data.get("axial_loads", {})
+        sesmassx = axial.get("SESMASSX", {})
+        if sesmassx:
+            W = max(sesmassx.values())
+        else:
+            total_weight = sum(s.source_data.mass or 0 for s in project.get_storeys_sorted())
+            W = total_weight * 9.81
     lam = 1.0
     
     Fb_x = Sd_x * W * lam

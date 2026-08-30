@@ -351,6 +351,7 @@ def _build_project_response(project):
         "lmax": project.lmax,
         "lmin": project.lmin,
         "building_summary": project.building_summary,
+        "total_weight_override": project.total_weight_override,
         "sections": sections,
         "storeys": [
             {
@@ -592,6 +593,53 @@ async def etabs_connect(req: EtabsConnectRequest):
         "project_name": project.project_name,
         "storeys_imported": len(project.storeys),
         "warnings": warnings,
+    }
+
+
+class WeightOverrideRequest(BaseModel):
+    total_weight: Optional[float] = None  # kN, None = use calculated value
+
+
+@app.post("/api/projects/{project_id}/weight-override")
+async def set_weight_override(project_id: str, req: WeightOverrideRequest):
+    """Set or clear the total building weight override for Section 4.1."""
+    if project_id not in projects_store:
+        raise HTTPException(404, "Project not found")
+    project = projects_store[project_id]["project"]
+    project.total_weight_override = req.total_weight
+    # Recalculate sections with new weight
+    ext_data = projects_store[project_id].get("ext_data")
+    if ext_data:
+        try:
+            from calculations.engine_extended import (
+                calculate_section_3_3, calculate_section_3_4, calculate_section_4_1,
+                calculate_section_4_2, calculate_section_4_3, calculate_section_4_4,
+                calculate_section_4_5, calculate_section_4_6,
+            )
+            sections = {}
+            sections["3.3"] = calculate_section_3_3(project, ext_data)
+            sections["3.4"] = calculate_section_3_4(project, sections["3.3"])
+            sections["4.1"] = calculate_section_4_1(project, sections["3.4"], ext_data)
+            sections["4.2"] = calculate_section_4_2(ext_data)
+            sections["4.3"] = calculate_section_4_3(project, ext_data)
+            q_val = sections.get("3.4", {}).get("q", 2.76)
+            sections["4.4"] = calculate_section_4_4(project, ext_data, q=q_val)
+            sections["4.5"] = calculate_section_4_5(project, ext_data)
+            sections["4.6"] = calculate_section_4_6(project, sections.get("4.1", {}), ext_data, q=q_val)
+            projects_store[project_id]["sections"] = sections
+        except Exception as e:
+            print(f"Recalc error: {e}")
+    w = project.total_weight_override
+    calculated = None
+    if ext_data:
+        axial = ext_data.get("axial_loads", {})
+        sesmassx = axial.get("SESMASSX", {})
+        calculated = max(sesmassx.values()) if sesmassx else None
+    return {
+        "status": "success",
+        "total_weight_override": w,
+        "calculated_weight": calculated,
+        "active_weight": w if w and w > 0 else calculated,
     }
 
 

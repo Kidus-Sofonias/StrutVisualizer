@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
-import { Settings, Sun, Moon, FileText, Table, BarChart3, Download, RotateCcw } from 'lucide-react'
+import { Settings, Sun, Moon, FileText, Table, BarChart3, Download, RotateCcw, Weight } from 'lucide-react'
 
 const DEFAULT_SETTINGS = {
   theme: 'light',
@@ -16,6 +16,124 @@ const DEFAULT_SETTINGS = {
   chartTooltips: true,
   storeySortOrder: 'top-down',
   autoRecalculate: false,
+}
+
+function WeightOverrideSection() {
+  const [override, setOverride] = useState('')
+  const [activeWeight, setActiveWeight] = useState(null)
+  const [calculatedWeight, setCalculatedWeight] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [message, setMessage] = useState('')
+
+  const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
+
+  // Load current project info
+  useEffect(() => {
+    fetch(`${API}/api/projects`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.projects && data.projects.length > 0) {
+          const pid = data.projects[0].id
+          return fetch(`${API}/api/projects/${pid}`)
+        }
+      })
+      .then(r => r ? r.json() : null)
+      .then(proj => {
+        if (proj) {
+          if (proj.total_weight_override) {
+            setOverride(String(proj.total_weight_override))
+          }
+          // Get calculated weight from section 4.1
+          const w41 = proj.sections?.['4.1']?.total_weight_kN
+          if (w41) setCalculatedWeight(w41)
+        }
+      })
+      .catch(() => {})
+  }, [])
+
+  const handleSave = async () => {
+    setLoading(true)
+    setMessage('')
+    try {
+      const pid_res = await fetch(`${API}/api/projects`)
+      const pid_data = await pid_res.json()
+      if (!pid_data.projects || pid_data.projects.length === 0) {
+        setMessage('No project loaded')
+        setLoading(false)
+        return
+      }
+      const pid = pid_data.projects[0].id
+      const body = override && parseFloat(override) > 0
+        ? { total_weight: parseFloat(override) }
+        : { total_weight: null }
+      const res = await fetch(`${API}/api/projects/${pid}/weight-override`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json()
+      setActiveWeight(data.active_weight)
+      setCalculatedWeight(data.calculated_weight)
+      setMessage(body.total_weight
+        ? `Weight set to ${body.total_weight} kN (recalculated)`
+        : `Using calculated weight: ${data.calculated_weight?.toFixed(0) || '?'} kN`)
+    } catch (e) {
+      setMessage('Error: ' + e.message)
+    }
+    setLoading(false)
+  }
+
+  return (
+    <div className="settings-section">
+      <h3><Weight size={16} style={{ verticalAlign: -2, color: 'var(--accent)' }} /> Engineering Parameters</h3>
+      <div className="settings-row">
+        <div>
+          <div className="label">Total Building Weight (W) for Section 4.1</div>
+          <div className="hint">
+            Override the total weight used in base shear calculation.<br />
+            MDB-calculated: ~100,925 kN (Column + Pier Forces)<br />
+            Excel reference: 103,268 kN (Base Reactions)<br />
+            Leave empty to use MDB-calculated value.
+          </div>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              type="number"
+              value={override}
+              onChange={(e) => setOverride(e.target.value)}
+              placeholder={calculatedWeight ? String(Math.round(calculatedWeight)) : '103268'}
+              style={{
+                width: 140, padding: '7px 12px', fontSize: 13,
+                border: '1px solid var(--border-primary)', borderRadius: 'var(--radius-sm)',
+                background: 'var(--bg-subtle)', color: 'var(--text-primary)',
+                fontFamily: "'JetBrains Mono', monospace",
+              }}
+            />
+            <span style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>kN</span>
+          </div>
+          <button
+            className="primary-btn"
+            onClick={handleSave}
+            disabled={loading}
+            style={{ padding: '6px 16px', fontSize: 12 }}
+          >
+            {loading ? 'Saving...' : 'Apply & Recalculate'}
+          </button>
+          {activeWeight && (
+            <div style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>
+              Active: {activeWeight.toFixed(0)} kN
+            </div>
+          )}
+          {message && (
+            <div style={{ fontSize: 11, color: message.startsWith('Error') ? 'var(--red)' : 'var(--green)' }}>
+              {message}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
 }
 
 export default function SettingsPage({ settings, onUpdate }) {
@@ -227,6 +345,9 @@ export default function SettingsPage({ settings, onUpdate }) {
           <Toggle value={local.autoRecalculate} onChange={(v) => update('autoRecalculate', v)} />
         </div>
       </div>
+
+      {/* Engineering Parameters */}
+      <WeightOverrideSection />
     </motion.div>
   )
 }

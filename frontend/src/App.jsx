@@ -11,7 +11,7 @@ import SectionView from './components/SectionView'
 import SettingsPage from './components/SettingsPage'
 import './App.css'
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8007'
+const API = import.meta.env.VITE_API_URL || 'http://localhost:8000'
 
 const DEFAULT_SETTINGS = {
   theme: 'light',
